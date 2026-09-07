@@ -22,7 +22,7 @@ provider "aws" {
     tags = {
       project    = "trading-bots"
       managed_by = "terraform"
-      repository = "trading-bots-aws-setup"
+      repository = "trading-bots-host-setup"
     }
   }
 }

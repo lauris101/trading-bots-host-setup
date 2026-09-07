@@ -35,10 +35,12 @@ crowdsec_repo_suite: bookworm
 # the bot, 6-7 spare.
 hotpath_isolated_cpus: "2-5"
 
-# Where the stack keeps data and logs (DATA_BASE_DIR / LOGS_BASE_DIR in the
-# trading-bots .env). On the 80 GB root volume.
-data_base_dir: /data
-logs_base_dir: /logs
+# Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
+# LOGS_BASE_DIR in the trading-bots .env: the stack mounts
+# ${DATA_BASE_DIR}/data/trading-bots and ${LOGS_BASE_DIR}/logs/trading-bots,
+# so empty means /data/trading-bots and /logs/trading-bots on the root volume.
+data_base_dir: ""
+logs_base_dir: ""
 
 # Hostname to set on the box.
 host_name: trading-host

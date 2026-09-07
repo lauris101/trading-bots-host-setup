@@ -5,7 +5,7 @@
     dest: /etc/ssh/sshd_config.d/10-trading-host.conf
     mode: "0600"
     content: |
-      # Managed by ansible (trading-bots-aws-setup). Keys only, named users only.
+      # Managed by ansible (trading-bots-host-setup). Keys only, named users only.
       PasswordAuthentication no
       KbdInteractiveAuthentication no
       PermitRootLogin no

@@ -1,0 +1,37 @@
+# Copy to vars.yml (gitignored) and fill in. Loaded by playbook.yml.
+
+# The account the database stack runs under, and its SSH key: a public key
+# line, or a path to a .pub file (~ is expanded). Use the same key as the
+# trading host unless you have a reason not to.
+trading_bot_user: trading-bot
+trading_bot_public_key: "~/.ssh/id_ed25519_trading.pub"
+# Passwordless sudo: deploy.sh installs packages and creates directories.
+trading_bot_sudo: true
+
+# Who may SSH in after bootstrap. Root is not in the list: once the
+# trading-bot account works, root's password login is over.
+sshd_allow_users:
+  - "{{ trading_bot_user }}"
+
+# CrowdSec: addresses never to ban (the trading host's elastic IPs once you
+# have them, the dev box). The laptop has no fixed address.
+crowdsec_whitelist_cidrs:
+  - "78.47.39.128/32"
+  - "167.233.189.172/32"
+crowdsec_enroll_key: ""
+# Debian 13 hosts: bookworm (CrowdSec has no trixie suite yet). Debian 12
+# hosts: bookworm as well.
+crowdsec_repo_suite: bookworm
+
+# Swap as a safety margin on a small box (0 = none).
+swapfile_gb: 2
+swapfile_path: /swapfile
+
+# Prefixes for the stack's data and log roots, as DATA_BASE_DIR and
+# LOGS_BASE_DIR in the trading-bots-db .env. Empty means
+# /data/trading-bots/{postgres,clickhouse} and /logs/trading-bots. If the
+# VPS has a separate big disk mounted at, say, /mnt/data, put that here.
+data_base_dir: ""
+logs_base_dir: ""
+
+host_name: db-host

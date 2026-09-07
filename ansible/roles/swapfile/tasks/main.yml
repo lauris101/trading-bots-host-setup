@@ -1,0 +1,35 @@
+# A swapfile as a safety margin, not as memory: on a small database host a
+# ClickHouse merge or a backup can spike, and the alternative to a little
+# swap is the OOM killer taking postgres down. swappiness stays low (the
+# hotpath role sets 1 on the trading host; here 10).
+- name: Swapfile exists with the configured size
+  ansible.builtin.command: >-
+    sh -c "fallocate -l {{ swapfile_gb }}G {{ swapfile_path }}
+    && chmod 600 {{ swapfile_path }} && mkswap {{ swapfile_path }}"
+  args:
+    creates: "{{ swapfile_path }}"
+  when: swapfile_gb | int > 0
+
+- name: Swapfile is in fstab
+  ansible.posix.mount:
+    src: "{{ swapfile_path }}"
+    path: none
+    fstype: swap
+    opts: sw
+    state: present
+  when: swapfile_gb | int > 0
+
+- name: Swap is on
+  ansible.builtin.command: swapon {{ swapfile_path }}
+  register: swapon
+  changed_when: swapon.rc == 0
+  failed_when: swapon.rc != 0 and 'already' not in swapon.stderr and 'Device or resource busy' not in swapon.stderr
+  when: swapfile_gb | int > 0
+
+- name: Low swappiness
+  ansible.posix.sysctl:
+    name: vm.swappiness
+    value: "10"
+    sysctl_file: /etc/sysctl.d/90-swap.conf
+    reload: true
+  when: swapfile_gb | int > 0

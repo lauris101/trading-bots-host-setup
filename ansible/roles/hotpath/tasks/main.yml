@@ -6,7 +6,7 @@
     dest: /etc/default/grub.d/90-trading-hotpath.cfg
     mode: "0644"
     content: |
-      # Managed by ansible (trading-bots-aws-setup). Match BOT_CPUSET in trading-bots/.env.
+      # Managed by ansible (trading-bots-host-setup). Match BOT_CPUSET in trading-bots/.env.
       GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX isolcpus={{ hotpath_isolated_cpus }} nohz_full={{ hotpath_isolated_cpus }} rcu_nocbs={{ hotpath_isolated_cpus }}"
   register: grub_dropin
 

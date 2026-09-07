@@ -38,13 +38,21 @@
       - python3
     state: present
 
-- name: Chrony syncs from the Amazon Time Sync Service (link-local, no internet hop)
+- name: On EC2, chrony syncs from the Amazon Time Sync Service (link-local, no internet hop)
   ansible.builtin.copy:
     dest: /etc/chrony/sources.d/aws.sources
     mode: "0644"
     content: |
       # Amazon Time Sync Service: a stratum-1 source on the instance's own link.
       server 169.254.169.123 prefer iburst minpoll 4 maxpoll 4
+  when: ansible_facts.system_vendor == "Amazon EC2"
+  notify: Restart chrony
+
+- name: Elsewhere, no Amazon source (Debian's pool from the package config does the job)
+  ansible.builtin.file:
+    path: /etc/chrony/sources.d/aws.sources
+    state: absent
+  when: ansible_facts.system_vendor != "Amazon EC2"
   notify: Restart chrony
 
 - name: Chrony is running

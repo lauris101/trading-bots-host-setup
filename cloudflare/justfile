@@ -1,0 +1,39 @@
+# cloudflare task runner (run from this directory). `just --list` for an overview.
+# Terraform against the Cloudflare API: tunnels, DNS, Access.
+# Needs CLOUDFLARE_API_TOKEN in the environment (README "API token").
+
+tf := "terraform -chdir=."
+
+# Download the providers, once
+init:
+    {{tf}} init
+
+# fmt, validate, plan
+plan:
+    {{tf}} fmt -check -recursive
+    {{tf}} validate
+    {{tf}} plan
+
+# Create or update tunnels, hostnames and Access apps
+apply:
+    {{tf}} apply
+
+# Every hostname, its tunnel and origin
+hostnames:
+    {{tf}} output hostnames
+
+# The trading host's tunnel token (CLOUDFLARE_TUNNEL_TOKEN in trading-bots/.env)
+app-token:
+    @{{tf}} output -raw app_tunnel_token
+
+# The database host's tunnel token (CLOUDFLARE_TUNNEL_TOKEN in trading-bots-db/.env)
+db-token:
+    @{{tf}} output -raw db_tunnel_token
+
+# Log in to a TCP hostname from this laptop and forward it locally, e.g. `just tcp db 15432` then psql -h 127.0.0.1 -p 15432
+tcp label port:
+    cloudflared access tcp --hostname {{label}}.$({{tf}} output -raw domain 2>/dev/null || echo lz-co.xyz) --url 127.0.0.1:{{port}}
+
+# Tear down (the hosts' cloudflared then fail to connect; DNS names go away)
+destroy:
+    {{tf}} destroy

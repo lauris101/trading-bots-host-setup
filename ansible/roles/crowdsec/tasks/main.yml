@@ -38,7 +38,7 @@
     dest: /etc/crowdsec/acquis.d/sshd-journal.yaml
     mode: "0644"
     content: |
-      # Managed by ansible (trading-bots-aws-setup).
+      # Managed by ansible (trading-bots-host-setup).
       source: journalctl
       journalctl_filter:
         - "_SYSTEMD_UNIT=ssh.service"
@@ -71,7 +71,7 @@
     dest: /etc/crowdsec/parsers/s02-enrich/99-trading-whitelist.yaml
     mode: "0644"
     content: |
-      # Managed by ansible (trading-bots-aws-setup).
+      # Managed by ansible (trading-bots-host-setup).
       name: trading/whitelist
       description: "addresses that are never banned"
       whitelist:

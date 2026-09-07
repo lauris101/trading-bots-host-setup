@@ -1,18 +1,19 @@
-# terraform: state, plans, provider cache, real variable values
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/*.tfstate
-terraform/*.tfstate.*
-terraform/*.tfplan
-terraform/terraform.tfvars
-terraform/*.auto.tfvars
-terraform/crash.log
+# terraform (both stacks): state, plans, provider cache, real variable values
+**/.terraform/
+**/.terraform.lock.hcl
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/terraform.tfvars
+**/*.auto.tfvars
+**/crash.log
 
-# ansible: generated inventory, real variable values, retry files
-ansible/inventory/hosts.yml
-ansible/vars.yml
-ansible/*.retry
-ansible/.ansible/
+# ansible: generated or real inventories and variables, retry files
+trading-host/inventory/hosts.yml
+db-host/inventory.yml
+**/vars.yml
+**/*.retry
+**/.ansible/
 
 # keys never live here
 *.pem

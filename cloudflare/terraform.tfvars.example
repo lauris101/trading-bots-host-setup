@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+# The API token is NOT here: export CLOUDFLARE_API_TOKEN=... (README).
+
+account_id = "0123456789abcdef0123456789abcdef"
+zone_id    = "0123456789abcdef0123456789abcdef"
+domain     = "lz-co.xyz"
+
+# Who may log in (one-time PIN to these addresses).
+allowed_emails = ["you@example.com"]
+
+# Machines that skip the login: the trading host's three elastic IPs
+# (`just ips` in ../trading-host) and the dev box. Fill in after the
+# trading host exists; an empty list is fine to start.
+bypass_cidrs = [
+  # "13.x.x.x/32", "13.x.x.y/32", "13.x.x.z/32",
+  # "78.47.39.128/32", "167.233.189.172/32",
+]
+
+# Hostnames and origins have defaults (variables.tf): app./metrics. on the
+# trading host, db./ch./chdb./scraper./metrics-db. on the database host.
+# Override here to add or drop one, e.g.
+# app_ingress = { app = "http://127.0.0.1:8080" }

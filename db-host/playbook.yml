@@ -1,0 +1,61 @@
+# Configure the database host: a rented VPS handed over as root + password.
+# Two entry points, same playbook:
+#
+#   just bootstrap     first run: logs in as root with the password you were
+#                      given, makes the trading-bot account with your key,
+#                      then locks sshd to keys only (root can no longer log in)
+#   just provision     every later run: logs in as trading-bot with the key
+#
+# Idempotent. Nothing here installs postgres or clickhouse: those are
+# containers from the trading-bots-db repository, deployed as trading-bot
+# (README "Hand-over").
+- name: Database host
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+
+  pre_tasks:
+    - name: Wait for the host to accept SSH
+      ansible.builtin.wait_for_connection:
+        timeout: 120
+      tags: [always]
+
+    - name: Gather facts
+      ansible.builtin.setup:
+      tags: [always]
+
+    - name: Refuse anything but Debian 12/13 (the roles use apt, systemd, deb822 sources)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == "Debian"
+          - ansible_facts.distribution_major_version in ["12", "13"]
+        fail_msg: >-
+          expected Debian 12 or 13, found {{ ansible_facts.distribution }}
+          {{ ansible_facts.distribution_version }}; reinstall the VPS with a Debian image
+      tags: [always]
+
+  roles:
+    - { role: base, tags: [base] }
+    # The account and its key BEFORE sshd locks root out (bootstrap order).
+    - { role: trading_bot_user, tags: [trading_bot_user] }
+    - { role: sshd, tags: [sshd] }
+    - { role: docker, tags: [docker] }
+    - { role: crowdsec, tags: [crowdsec] }
+    - { role: swapfile, tags: [swapfile] }
+
+  post_tasks:
+    - name: Ports listening on non-loopback addresses (should be sshd only, until the stack runs)
+      ansible.builtin.shell: ss -Hltnu | awk '{print $1, $5}' | grep -v -E '127\.0\.0\.1|\[::1\]' | sort -u
+      changed_when: false
+      failed_when: false
+      register: listening
+      tags: [always]
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "{{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }} {{ ansible_facts.architecture }}, {{ ansible_facts.processor_vcpus }} vcpu, {{ (ansible_facts.memtotal_mb / 1024) | round(1) }} GiB"
+          - "listening beyond loopback: {{ listening.stdout_lines }}"
+          - "next: ssh {{ trading_bot_user }}@{{ ansible_host }} and follow README 'Hand-over to trading-bots-db'"
+      tags: [always]

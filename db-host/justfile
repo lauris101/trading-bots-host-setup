@@ -1,0 +1,42 @@
+# db-host task runner (run from this directory). `just --list` for an overview.
+# One layer: ansible over a VPS you were given as root + password.
+# Shared roles live in ../ansible/roles.
+
+ansible := "ansible-playbook -i inventory.yml"
+
+# Install ansible and the collections (Homebrew on a Mac, apt + pipx on Debian)
+tools:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname)" = Darwin ]; then
+        command -v brew >/dev/null || { echo "install Homebrew first: https://brew.sh"; exit 1; }
+        brew list ansible >/dev/null 2>&1 || brew install ansible
+    else
+        command -v ansible-playbook >/dev/null || { command -v pipx >/dev/null || sudo apt-get install -y pipx; pipx install --include-deps ansible-core; }
+    fi
+    ansible-galaxy collection install -r ../ansible/requirements.yml
+    ansible --version | head -1
+
+# First run: log in as root with the password you were given, create the trading-bot account, lock sshd to keys
+bootstrap:
+    {{ansible}} playbook.yml --diff -u root --ask-pass -e ansible_become=false
+
+# Every later run: as trading-bot with the key (idempotent)
+provision:
+    {{ansible}} playbook.yml --diff
+
+# Dry run with diffs
+check:
+    {{ansible}} playbook.yml --check --diff
+
+# A subset, e.g. `just tags crowdsec,sshd`
+tags tags:
+    {{ansible}} playbook.yml --diff --tags {{tags}}
+
+# Prove the key login works (run this before trusting that root is locked out)
+ping:
+    ansible -i inventory.yml all -m ping
+
+# SSH in as trading-bot
+ssh:
+    ssh trading-bot@$(python3 -c "import yaml; print(yaml.safe_load(open('inventory.yml'))['all']['hosts']['db-host']['ansible_host'])")

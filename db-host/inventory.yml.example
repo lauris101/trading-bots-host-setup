@@ -1,0 +1,11 @@
+# Copy to inventory.yml (gitignored) and fill in the address.
+#
+# `just bootstrap` overrides the user with root and asks for the password;
+# after that, this is what every run uses: the trading-bot account and the
+# key from vars.yml.
+all:
+  hosts:
+    db-host:
+      ansible_host: 203.0.113.10
+      ansible_user: trading-bot
+      ansible_python_interpreter: /usr/bin/python3

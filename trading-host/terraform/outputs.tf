@@ -22,7 +22,7 @@ output "ssh" {
   value       = "ssh admin@${aws_eip.host[0].public_ip}"
 }
 
-# `just inventory` writes this to ansible/inventory/hosts.yml.
+# `just inventory` writes this to inventory/hosts.yml.
 output "ansible_inventory" {
   value = <<-EOT
     # Generated from terraform output; do not edit (just inventory).

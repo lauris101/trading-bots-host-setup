@@ -1,8 +1,9 @@
-# trading-bots-aws-setup task runner. `just --list` for an overview.
+# trading-host task runner (run from this directory). `just --list` for an overview.
 # Two layers: terraform makes the AWS resources, ansible makes the OS.
+# Shared roles live in ../ansible/roles.
 
 tf := "terraform -chdir=terraform"
-ansible := "ansible-playbook -i ansible/inventory/hosts.yml"
+ansible := "ansible-playbook -i inventory/hosts.yml"
 
 # Install the tools: Homebrew on a Mac, apt + pipx on Debian/Ubuntu (README "Tools")
 tools:
@@ -17,7 +18,7 @@ tools:
         command -v terraform >/dev/null || echo "terraform: https://developer.hashicorp.com/terraform/install (or apt install opentofu and set tf := \"tofu -chdir=terraform\" here)"
         command -v ansible-playbook >/dev/null || { command -v pipx >/dev/null || sudo apt-get install -y pipx; pipx install --include-deps ansible-core; }
     fi
-    ansible-galaxy collection install -r ansible/requirements.yml
+    ansible-galaxy collection install -r ../ansible/requirements.yml
     terraform version | head -1; ansible --version | head -1
 
 # --- AWS resources (terraform) ------------------------------------------------
@@ -37,11 +38,11 @@ apply:
     {{tf}} apply
     just inventory
 
-# Write ansible/inventory/hosts.yml from the terraform outputs
+# Write inventory/hosts.yml from the terraform outputs
 inventory:
-    mkdir -p ansible/inventory
-    {{tf}} output -raw ansible_inventory > ansible/inventory/hosts.yml
-    @echo "wrote ansible/inventory/hosts.yml:"; cat ansible/inventory/hosts.yml
+    mkdir -p inventory
+    {{tf}} output -raw ansible_inventory > inventory/hosts.yml
+    @echo "wrote inventory/hosts.yml:"; cat inventory/hosts.yml
 
 # The elastic IPs and what each is bound to
 ips:
@@ -51,19 +52,19 @@ ips:
 
 # Check ansible can reach the host as admin
 ping:
-    ansible -i ansible/inventory/hosts.yml all -m ping
+    ansible -i inventory/hosts.yml all -m ping
 
 # Dry run of the playbook: what would change on the host
 check:
-    {{ansible}} ansible/site.yml --check --diff
+    {{ansible}} playbook.yml --check --diff
 
 # Configure the host (idempotent; reboots only if the kernel command line changed)
 provision:
-    {{ansible}} ansible/site.yml --diff
+    {{ansible}} playbook.yml --diff
 
 # Run a subset, e.g. `just tags trading_bot_user,sshd`
 tags tags:
-    {{ansible}} ansible/site.yml --diff --tags {{tags}}
+    {{ansible}} playbook.yml --diff --tags {{tags}}
 
 # SSH in as admin (ansible's user)
 ssh:
