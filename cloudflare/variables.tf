@@ -62,17 +62,6 @@ variable "host_a_records" {
   default     = {}
 }
 
-# Hostnames on the services host's tunnel (the Hetzner box running Uptime
-# Kuma, Grafana, ...). An empty map means no tunnel for it.
-variable "services_ingress" {
-  description = "hostname label => origin, on the services host's tunnel."
-  type        = map(string)
-  default = {
-    grafana = "http://127.0.0.1:3000"
-    kuma    = "http://127.0.0.1:3001"
-  }
-}
-
 variable "session_duration" {
   description = "How long an Access login lasts before the next one-time PIN."
   type        = string

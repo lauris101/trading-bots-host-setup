@@ -30,10 +30,6 @@ app-token:
 db-token:
     @{{tf}} output -raw db_tunnel_token
 
-# The services host's tunnel token (Uptime Kuma, Grafana box)
-services-token:
-    @{{tf}} output -raw services_tunnel_token
-
 # Log in to a TCP hostname from this laptop and forward it locally, e.g. `just tcp db 15432` then psql -h 127.0.0.1 -p 15432
 tcp label port:
     cloudflared access tcp --hostname {{label}}.$({{tf}} output -raw domain 2>/dev/null || echo lz-co.xyz) --url 127.0.0.1:{{port}}

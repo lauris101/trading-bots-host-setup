@@ -24,7 +24,6 @@ bypass_cidrs = [
 # host_a_records = { "trading-host" = "13.x.x.x", "db-host" = "203.0.113.10" }
 
 # Hostnames and origins have defaults (variables.tf): app./metrics. on the
-# trading host; db./ch./chdb./scraper./metrics-db. on the database host;
-# grafana./kuma. on the services host. Override a map to add or drop one:
-# services_ingress = { grafana = "http://127.0.0.1:3000", kuma = "http://127.0.0.1:3001", prom = "http://127.0.0.1:9090" }
-# services_ingress = {}      # no services host
+# trading host; db./ch./chdb./scraper./metrics-db. on the database host.
+# Override a map to add or drop one, e.g.
+# app_ingress = { app = "http://127.0.0.1:8080" }

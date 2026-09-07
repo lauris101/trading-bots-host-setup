@@ -26,12 +26,6 @@ output "db_tunnel_token" {
   sensitive   = true
 }
 
-output "services_tunnel_token" {
-  description = "CLOUDFLARE_TUNNEL_TOKEN for the services host (empty when services_ingress is empty)"
-  value       = try(data.cloudflare_zero_trust_tunnel_cloudflared_token.host["services"].token, "")
-  sensitive   = true
-}
-
 output "access_policies" {
   value = {
     allow_people    = cloudflare_zero_trust_access_policy.allow_people.id

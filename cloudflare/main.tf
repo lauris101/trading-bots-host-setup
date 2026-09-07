@@ -5,13 +5,10 @@
 # terminates TLS and applies the policy, the tunnel carries what is left.
 
 locals {
-  hosts = merge(
-    {
-      app = { name = "trading-host", ingress = var.app_ingress }
-      db  = { name = "db-host", ingress = var.db_ingress }
-    },
-    length(var.services_ingress) > 0 ? { services = { name = "services-host", ingress = var.services_ingress } } : {}
-  )
+  hosts = {
+    app = { name = "trading-host", ingress = var.app_ingress }
+    db  = { name = "db-host", ingress = var.db_ingress }
+  }
   # Flatten (tunnel, label) => origin for the per-hostname resources.
   hostnames = merge([
     for key, h in local.hosts : {
