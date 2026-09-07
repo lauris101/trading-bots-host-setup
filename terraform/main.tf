@@ -55,7 +55,7 @@ resource "aws_route_table_association" "public" {
 # outbound.
 resource "aws_security_group" "host" {
   name        = "${var.name}-host"
-  description = "SSH from the allow-list; all outbound"
+  description = "SSH in (ssh_allowed_cidrs, the internet by default); all outbound"
   vpc_id      = aws_vpc.main.id
 
   tags = { Name = "${var.name}-host" }

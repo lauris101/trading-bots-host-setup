@@ -285,7 +285,7 @@ data sockets spread across them.
 
 ## Day 2
 
-- **Change the allow-list or the key:** edit `terraform.tfvars`, `just apply`
+- **Narrow SSH to fixed addresses, or change the key:** edit `terraform.tfvars`, `just apply`
   (the security group updates in place); edit `vars.yml`, `just tags
   trading_bot_user,sshd`.
 - **Add an elastic IP:** raise `elastic_ip_count`, `just apply`; the timer
