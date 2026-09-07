@@ -16,6 +16,10 @@ bypass_cidrs = [
   # "78.47.39.128/32", "167.233.189.172/32",
 ]
 
+# Optional: plain names for the hosts themselves, for ssh. Not used by the
+# tunnels. Unproxied A records, so they reveal the addresses.
+# host_a_records = { "trading-host" = "13.x.x.x", "db-host" = "203.0.113.10" }
+
 # Hostnames and origins have defaults (variables.tf): app./metrics. on the
 # trading host, db./ch./chdb./scraper./metrics-db. on the database host.
 # Override here to add or drop one, e.g.

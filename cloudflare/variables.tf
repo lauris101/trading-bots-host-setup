@@ -56,6 +56,12 @@ variable "db_ingress" {
   }
 }
 
+variable "host_a_records" {
+  description = "Optional plain A records naming the hosts themselves (label => IPv4), unproxied, for `ssh trading-host.lz-co.xyz`. Not used by the tunnels, which never point at a host address; publishing these only reveals the IPs, whose one open port is SSH."
+  type        = map(string)
+  default     = {}
+}
+
 variable "session_duration" {
   description = "How long an Access login lasts before the next one-time PIN."
   type        = string

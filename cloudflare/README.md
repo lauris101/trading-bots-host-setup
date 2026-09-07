@@ -28,11 +28,21 @@ TLS, checks the policy, and forwards through the tunnel.
 | `cloudflare_zero_trust_access_policy` | 2 | "allowed people" (Allow, by email) and "machines by source address" (Bypass, by CIDR) |
 | `cloudflare_zero_trust_access_application` | 7 | one per hostname, both policies attached, bypass first |
 
-**CNAME, not A records.** You mentioned A records for `app.` and `db.`; a
-tunnel hostname has no address to publish. The CNAME points at the tunnel,
-Cloudflare's proxy answers on its own anycast addresses, and the true host
-IPs appear nowhere in DNS. Nothing else about the domain is touched:
-add unrelated records by hand or in another file.
+**CNAME to the tunnel, no A record of the host anywhere.** A tunnel is
+not a pointer to the host's address. `cloudflared` on the host opens an
+outbound connection to Cloudflare and identifies itself by tunnel id; the
+public hostname is a proxied CNAME to `<tunnel id>.cfargotunnel.com`, so
+DNS returns Cloudflare's own anycast addresses; the ingress table then maps
+the hostname to a service INSIDE the host (`tcp://127.0.0.1:5432`), reached
+over that connection. The host's IP is used by nothing in this chain, which
+is why the security group can admit SSH only and why the trading host's
+three elastic IPs are irrelevant here. A DNS record cannot carry a port
+either, so `db.db.lz-co.xyz -> db.lz-co.xyz:5432` is not a shape DNS or
+the tunnel has; the port lives in the ingress rule.
+
+If you want names for the hosts themselves, for `ssh trading-host.lz-co.xyz`,
+`host_a_records` adds plain unproxied A records. They serve SSH and nothing
+else, and they publish the addresses, so they are off by default.
 
 **Access, the allow-list model.** Every hostname is an Access application.
 A request from a `bypass_cidrs` address (the trading host's elastic IPs, so

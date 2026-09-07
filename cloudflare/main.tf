@@ -80,6 +80,20 @@ resource "cloudflare_dns_record" "hostname" {
   comment = "tunnel ${local.hosts[each.value.tunnel].name}: ${each.value.origin} (terraform, trading-bots-host-setup)"
 }
 
+# Optional convenience names for SSH (host_a_records). Grey-cloud: DNS only,
+# no proxy, because SSH is not HTTP and Cloudflare would not carry it.
+resource "cloudflare_dns_record" "host_a" {
+  for_each = var.host_a_records
+
+  zone_id = var.zone_id
+  name    = "${each.key}.${var.domain}"
+  type    = "A"
+  content = each.value
+  proxied = false
+  ttl     = 300
+  comment = "ssh name for the host itself (terraform, trading-bots-host-setup)"
+}
+
 # --- Access ------------------------------------------------------------------
 
 # Reusable policies: who may log in, and which machines skip the login.
