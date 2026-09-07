@@ -41,9 +41,10 @@ variable "app_ingress" {
   }
 }
 
-# Hostnames on the database host's tunnel. TCP origins are reached from a
+# Hostnames on the db/services host's tunnel. TCP origins are reached from a
 # client with `cloudflared access tcp` (the trading host's db-proxy does
-# this); HTTP ones straight from a browser or curl.
+# this); HTTP ones straight from a browser or curl. Services added to that
+# host (Grafana, Uptime Kuma, ...) get a line each here.
 variable "db_ingress" {
   description = "hostname label => origin, on the database host's tunnel."
   type        = map(string)

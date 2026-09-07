@@ -1,9 +1,12 @@
 # db-host
 
-The database host, as code: a rented VPS (Debian 12 or 13) delivered as
-`root` with a password, configured as a keys-only host with the
-`trading-bot` account, Docker, CrowdSec and a swapfile, for the
-`trading-bots-db` stack. Ansible only.
+The database and services host, as code: a rented VPS (Debian 12 or 13)
+delivered as `root` with a password, configured as a keys-only host with
+the `trading-bot` account, Docker, CrowdSec and a swapfile. It runs the
+`trading-bots-db` stack (postgres, ClickHouse, the scraper) and the
+operations services (Uptime Kuma, Prometheus, Grafana, others as added),
+each behind its own hostname on this host's tunnel (`../cloudflare`,
+`db_ingress`). Ansible only.
 
 ## The process
 
@@ -83,6 +86,15 @@ The tunnel token comes from the `cloudflare` part of this repository
 
 ## Sizing
 
-2 vCPU / 4 GB with the swapfile; ClickHouse is capped in the compose file.
-Disk holds postgres data, ClickHouse quotes (1 day TTL) and 7 days of logs;
-wal-g backups go to R2. 40 GB to start.
+Databases alone: 2 vCPU / 4 GB with the swapfile; ClickHouse is capped in
+the compose file. With Uptime Kuma, Prometheus and Grafana on the same
+host: 4 vCPU / 8 GB. Disk holds postgres data, ClickHouse quotes (1 day
+TTL), 7 days of logs and Prometheus's retention; wal-g backups go to R2.
+40 GB to start, 80 GB with Prometheus.
+
+## Access bypass
+
+Uptime Kuma and Prometheus on this host poll `app.`, `metrics.`, `scraper.`
+and the other hostnames through Cloudflare, so this host's public addresses
+(IPv4 and, if present, IPv6) are in `bypass_cidrs` in `../cloudflare`. Its
+own services are reached the same way from a browser, behind the login.

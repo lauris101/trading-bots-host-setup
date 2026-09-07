@@ -7,7 +7,7 @@ independent parts. Each has its own README, `justfile` and state; run
 | part | tool | makes |
 |---|---|---|
 | [`trading-host/`](trading-host/README.md) | terraform + ansible | the AWS Graviton box in Tokyo: VPC, `c7g.2xlarge` on Debian 13, 80 GB root, 3 elastic IPs, SSH-only security group; then the OS: `trading-bot` account, Docker, CrowdSec, secondary IPs, core isolation |
-| [`db-host/`](db-host/README.md) | ansible | a rented Debian VPS handed over as root + password, turned into the same keys-only `trading-bot` + Docker + CrowdSec box, with a swapfile |
+| [`db-host/`](db-host/README.md) | ansible | a rented Debian VPS handed over as root + password, turned into the same keys-only `trading-bot` + Docker + CrowdSec box, with a swapfile; runs the databases and the operations services (Uptime Kuma, Prometheus, Grafana) |
 | [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host, the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per host (people by email, machines by source address) |
 | `ansible/roles/` | shared | the roles both playbooks use: `base`, `sshd`, `trading_bot_user`, `docker`, `crowdsec`, `secondary_ips`, `hotpath`, `swapfile` |
 
@@ -20,7 +20,7 @@ repositories, as the `trading-bot` user each part creates.
 ```
 1. trading-host   just init/plan/apply, just provision      -> 3 elastic IPs, a ready box
 2. db-host        just bootstrap                             -> a ready box
-3. cloudflare     just init/plan/apply (bypass_cidrs = the 3 EIPs + dev box)
+3. cloudflare     just init/plan/apply (bypass_cidrs = the 3 EIPs, the db/services host, the dev box)
                   just app-token / just db-token             -> CLOUDFLARE_TUNNEL_TOKEN for each .env
 4. on db-host     trading-bots-db: bootstrap.sh, .env (token, R2), deploy    -> db./ch./chdb.<domain>
 5. on trading-host trading-bots: bootstrap.sh, .env (token, DATABASE_URL via db-proxy), deploy.sh prod vX.Y.Z
