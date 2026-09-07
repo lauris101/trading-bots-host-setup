@@ -7,21 +7,26 @@ independent parts. Each has its own README, `justfile` and state; run
 | part | tool | makes |
 |---|---|---|
 | [`trading-host/`](trading-host/README.md) | terraform + ansible | the AWS Graviton box in Tokyo: VPC, `c7g.2xlarge` on Debian 13, 80 GB root, 3 elastic IPs, SSH-only security group; then the OS: `trading-bot` account, Docker, CrowdSec, secondary IPs, core isolation |
-| [`db-host/`](db-host/README.md) | ansible | a rented Debian VPS handed over as root + password, turned into the same keys-only `trading-bot` + Docker + CrowdSec box, with a swapfile; runs the databases and the operations services (Uptime Kuma, Prometheus, Grafana) |
-| [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host, the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per host (people by email, machines by source address) |
+| [`db-host/`](db-host/README.md) | ansible | a rented Debian VPS handed over as root + password, turned into the same keys-only `trading-bot` + Docker + CrowdSec box, with a swapfile |
+| [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host (trading host, db host, services host), the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per host (people by email, machines by source address) |
 | `ansible/roles/` | shared | the roles both playbooks use: `base`, `sshd`, `trading_bot_user`, `docker`, `crowdsec`, `secondary_ips`, `hotpath`, `swapfile` |
 
 The services (postgres, ClickHouse, the bot, control, the scraper,
 fluentd) are deployed from the `trading-bots` and `trading-bots-db`
 repositories, as the `trading-bot` user each part creates.
 
+A third host, an existing Hetzner box, runs the operations services (Uptime
+Kuma, Grafana, others). It is not provisioned here; the `cloudflare` part
+gives it a tunnel and hostnames (`services_ingress`), and its addresses go
+on the Access bypass list so its monitors reach the other hostnames.
+
 ## Order
 
 ```
 1. trading-host   just init/plan/apply, just provision      -> 3 elastic IPs, a ready box
 2. db-host        just bootstrap                             -> a ready box
-3. cloudflare     just init/plan/apply (bypass_cidrs = the 3 EIPs, the db/services host, the dev box)
-                  just app-token / just db-token             -> CLOUDFLARE_TUNNEL_TOKEN for each .env
+3. cloudflare     just init/plan/apply (bypass_cidrs = the 3 EIPs, the services host, the dev box)
+                  just app-token / db-token / services-token -> CLOUDFLARE_TUNNEL_TOKEN for each host
 4. on db-host     trading-bots-db: bootstrap.sh, .env (token, R2), deploy    -> db./ch./chdb.<domain>
 5. on trading-host trading-bots: bootstrap.sh, .env (token, DATABASE_URL via db-proxy), deploy.sh prod vX.Y.Z
 ```

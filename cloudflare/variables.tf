@@ -41,10 +41,9 @@ variable "app_ingress" {
   }
 }
 
-# Hostnames on the db/services host's tunnel. TCP origins are reached from a
+# Hostnames on the database host's tunnel. TCP origins are reached from a
 # client with `cloudflared access tcp` (the trading host's db-proxy does
-# this); HTTP ones straight from a browser or curl. Services added to that
-# host (Grafana, Uptime Kuma, ...) get a line each here.
+# this); HTTP ones straight from a browser or curl.
 variable "db_ingress" {
   description = "hostname label => origin, on the database host's tunnel."
   type        = map(string)
@@ -61,6 +60,17 @@ variable "host_a_records" {
   description = "Optional plain A records naming the hosts themselves (label => IPv4), unproxied, for `ssh trading-host.lz-co.xyz`. Not used by the tunnels, which never point at a host address; publishing these only reveals the IPs, whose one open port is SSH."
   type        = map(string)
   default     = {}
+}
+
+# Hostnames on the services host's tunnel (the Hetzner box running Uptime
+# Kuma, Grafana, ...). An empty map means no tunnel for it.
+variable "services_ingress" {
+  description = "hostname label => origin, on the services host's tunnel."
+  type        = map(string)
+  default = {
+    grafana = "http://127.0.0.1:3000"
+    kuma    = "http://127.0.0.1:3001"
+  }
 }
 
 variable "session_duration" {

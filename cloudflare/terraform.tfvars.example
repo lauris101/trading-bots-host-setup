@@ -9,12 +9,12 @@ domain     = "lz-co.xyz"
 allowed_emails = ["you@example.com"]
 
 # Machines that skip the login: the trading host's elastic IPs (`just ips`
-# in ../trading-host), the db/services host (Uptime Kuma, Prometheus and
-# Grafana poll the hostnames from there), the dev box. Dual-stack machines:
-# both IPv4 and IPv6 ranges. Fill in as the hosts exist.
+# in ../trading-host), the services host (Uptime Kuma and Grafana poll the
+# hostnames from there), the dev box. Dual-stack machines: both IPv4 and
+# IPv6 ranges. Fill in as the hosts exist.
 bypass_cidrs = [
   # "13.x.x.x/32", "13.x.x.y/32", "13.x.x.z/32",          # trading host EIPs
-  # "203.0.113.10/32", "2001:db8:1::/64",                # db/services host
+  # "203.0.113.10/32", "2001:db8:1::/64",                # services host
   # "78.47.39.128/32", "167.233.189.172/32",             # dev box, IPv4
   # "2a01:4f8:c2c:d113::/64",                            # dev box, IPv6
 ]
@@ -24,10 +24,7 @@ bypass_cidrs = [
 # host_a_records = { "trading-host" = "13.x.x.x", "db-host" = "203.0.113.10" }
 
 # Hostnames and origins have defaults (variables.tf): app./metrics. on the
-# trading host, db./ch./chdb./scraper./metrics-db. on the db/services host.
-# Override here to add or drop one. Services on the db/services host, e.g.:
-# db_ingress = {
-#   db = "tcp://127.0.0.1:5432", ch = "tcp://127.0.0.1:9000", chdb = "http://127.0.0.1:8123",
-#   scraper = "http://127.0.0.1:8084", metrics-db = "http://127.0.0.1:9100",
-#   grafana = "http://127.0.0.1:3000", kuma = "http://127.0.0.1:3001",
-# }
+# trading host; db./ch./chdb./scraper./metrics-db. on the database host;
+# grafana./kuma. on the services host. Override a map to add or drop one:
+# services_ingress = { grafana = "http://127.0.0.1:3000", kuma = "http://127.0.0.1:3001", prom = "http://127.0.0.1:9090" }
+# services_ingress = {}      # no services host

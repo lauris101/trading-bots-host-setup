@@ -1,8 +1,9 @@
 # cloudflare
 
-The Cloudflare side of both hosts, as Terraform: one tunnel per host, a
-hostname per service under `lz-co.xyz`, and one Zero Trust Access
-application per host covering its hostnames. Neither host opens a port for any of this:
+The Cloudflare side of the hosts, as Terraform: one tunnel per host
+(trading host, database host, services host), a hostname per service under
+`lz-co.xyz`, and one Zero Trust Access application per host covering its
+hostnames. Neither host opens a port for any of this:
 `cloudflared` on the host dials out to Cloudflare, Cloudflare terminates
 TLS, checks the policy, and forwards through the tunnel.
 
@@ -18,15 +19,22 @@ TLS, checks the policy, and forwards through the tunnel.
                  chdb.lz-co.xyz     -->        "                --> 127.0.0.1:8123  clickhouse http
                  scraper.lz-co.xyz  -->        "                --> 127.0.0.1:8084  scraper api
                  metrics-db.lz-co.xyz ->       "                --> 127.0.0.1:9100  node-exporter
+  browser ---->  grafana.lz-co.xyz  -->  tunnel "services-host" --> 127.0.0.1:3000  grafana
+                 kuma.lz-co.xyz     -->        "                --> 127.0.0.1:3001  uptime kuma
 ```
 
 | resource | count | why |
 |---|---|---|
-| `cloudflare_zero_trust_tunnel_cloudflared` | 2 | one per host; the secret is generated here and never leaves the state except as the token |
-| `..._tunnel_cloudflared_config` | 2 | the ingress table, remote-managed: the host needs only its token, no config file |
-| `cloudflare_dns_record` | 7 | one proxied **CNAME** per hostname to `<tunnel id>.cfargotunnel.com` |
+| `cloudflare_zero_trust_tunnel_cloudflared` | 3 | one per host; the secret is generated here and never leaves the state except as the token |
+| `..._tunnel_cloudflared_config` | 3 | the ingress table, remote-managed: the host needs only its token, no config file |
+| `cloudflare_dns_record` | 9 | one proxied **CNAME** per hostname to `<tunnel id>.cfargotunnel.com` |
 | `cloudflare_zero_trust_access_policy` | 2 | "allowed people" (Allow, by email) and "machines by source address" (Bypass, by CIDR) |
-| `cloudflare_zero_trust_access_application` | 2 | one per host, listing all of that host's hostnames as destinations; both policies attached, bypass first; one login session per host |
+| `cloudflare_zero_trust_access_application` | 3 | one per host, listing all of that host's hostnames as destinations; both policies attached, bypass first; one login session per host |
+
+The services host is the existing Hetzner box running Uptime Kuma and
+Grafana; `services_ingress` lists its hostnames (`{}` removes its tunnel).
+Its addresses belong in `bypass_cidrs` so the monitors reach the other
+hostnames without a login.
 
 **DNS.** Each hostname is a proxied CNAME to `<tunnel id>.cfargotunnel.com`.
 `cloudflared` on the host connects outbound to Cloudflare; the ingress table
@@ -101,7 +109,7 @@ only what this configuration created.
 ```bash
 cp terraform.tfvars.example terraform.tfvars   # ids, domain, your email
 just init
-just plan          # 2 tunnels, 2 configs, 7 CNAMEs, 2 policies, 2 apps
+just plan          # 3 tunnels, 3 configs, 9 CNAMEs, 2 policies, 3 apps
 just apply
 just hostnames
 ```
@@ -113,12 +121,15 @@ place.
 ### 2. Give each host its token
 
 ```bash
-just app-token     # -> CLOUDFLARE_TUNNEL_TOKEN in trading-bots/.env,  COMPOSE_PROFILES includes tunnel
-just db-token      # -> CLOUDFLARE_TUNNEL_TOKEN in trading-bots-db/.env, likewise
+just app-token       # -> CLOUDFLARE_TUNNEL_TOKEN in trading-bots/.env,  COMPOSE_PROFILES includes tunnel
+just db-token        # -> CLOUDFLARE_TUNNEL_TOKEN in trading-bots-db/.env, likewise
+just services-token  # -> the services host: docker run cloudflare/cloudflared tunnel run --token ...
 ```
 
-Both stacks run `cloudflared` from that token (`tunnel run`, no config
-file); the ingress table is the one applied here, changed here. A hostname
+The two stacks run `cloudflared` from their token (`tunnel run`, no config
+file); on the services host, `cloudflared tunnel --no-autoupdate run
+--token <token>` as a container or a systemd service. The ingress table is
+the one applied here, changed here. A hostname
 answers 502 until its origin is up, 404 for a hostname the tunnel does not
 know, and the Access login page before either.
 
@@ -135,8 +146,8 @@ know, and the Access login page before either.
 
 ## Day 2
 
-- **Add a hostname:** add a label => origin to `app_ingress` or
-  `db_ingress` in `terraform.tfvars`, `just apply`. CNAME and ingress rule
+- **Add a hostname:** add a label => origin to `app_ingress`, `db_ingress`
+  or `services_ingress` in `terraform.tfvars`, `just apply`. CNAME and ingress rule
   are created and the host's Access application gains the destination; the
   host needs no change.
 - **Add a person:** `allowed_emails`, apply. **Remove one:** same; their
