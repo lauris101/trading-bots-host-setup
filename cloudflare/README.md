@@ -28,21 +28,11 @@ TLS, checks the policy, and forwards through the tunnel.
 | `cloudflare_zero_trust_access_policy` | 2 | "allowed people" (Allow, by email) and "machines by source address" (Bypass, by CIDR) |
 | `cloudflare_zero_trust_access_application` | 7 | one per hostname, both policies attached, bypass first |
 
-**CNAME to the tunnel, no A record of the host anywhere.** A tunnel is
-not a pointer to the host's address. `cloudflared` on the host opens an
-outbound connection to Cloudflare and identifies itself by tunnel id; the
-public hostname is a proxied CNAME to `<tunnel id>.cfargotunnel.com`, so
-DNS returns Cloudflare's own anycast addresses; the ingress table then maps
-the hostname to a service INSIDE the host (`tcp://127.0.0.1:5432`), reached
-over that connection. The host's IP is used by nothing in this chain, which
-is why the security group can admit SSH only and why the trading host's
-three elastic IPs are irrelevant here. A DNS record cannot carry a port
-either, so `db.db.lz-co.xyz -> db.lz-co.xyz:5432` is not a shape DNS or
-the tunnel has; the port lives in the ingress rule.
-
-If you want names for the hosts themselves, for `ssh trading-host.lz-co.xyz`,
-`host_a_records` adds plain unproxied A records. They serve SSH and nothing
-else, and they publish the addresses, so they are off by default.
+**DNS.** Each hostname is a proxied CNAME to `<tunnel id>.cfargotunnel.com`.
+`cloudflared` on the host connects outbound to Cloudflare; the ingress table
+maps the hostname to a local service on the host (`tcp://127.0.0.1:5432`).
+No host IP is published. `host_a_records` optionally adds plain A records
+for the hosts themselves (SSH names); off by default.
 
 **Access, the allow-list model.** Every hostname is an Access application.
 A request from a `bypass_cidrs` address (the trading host's elastic IPs, so
@@ -53,17 +43,10 @@ one-time PIN mailed to that address, valid for `session_duration` (24h).
 TCP hostnames (`db.`, `ch.`) work the same way through `cloudflared access
 tcp` on the client, which is what the trading host's `db-proxy` runs.
 
-**IPv4 and IPv6 in the bypass list.** The rule matches the address
-Cloudflare sees the connection come from. A dual-stack machine prefers
-IPv6 for the edge, so a rule listing only its IPv4 fails for it (this is
-the "had to add both" you ran into). Measured on the dev box: `curl` from
-the shell arrives as `2a01:4f8:c2c:d113::1`, the same `curl` inside a
-docker container as `78.47.39.128`, because docker networks are IPv4-only
-unless enabled. So: list the dev box's IPv6 `/64` as well as its two IPv4
-addresses; the trading host needs only its elastic IPs, since the VPC has
-no IPv6 block and nothing on it can speak IPv6 to the outside; the
-containers on the database host (scraper, fluentd) are IPv4-only too. Both
-families are accepted in the same `ip` rule, one CIDR each.
+**IPv4 and IPv6 in the bypass list.** The rule matches the source address
+Cloudflare sees. A dual-stack machine connects over IPv6, so list both its
+IPv4 and IPv6 ranges. Docker containers are IPv4-only by default. The
+trading host has no IPv6 (the VPC has none): its elastic IPs suffice.
 
 ## The process
 
