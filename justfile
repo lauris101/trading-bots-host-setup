@@ -79,6 +79,7 @@ latency samples="20":
 
 # --- teardown -----------------------------------------------------------------
 
-# Destroy everything (refused while termination_protection = true; flip it in terraform.tfvars and apply first)
+# Destroy everything: lift termination protection on the instance (confirm), then destroy (confirm). README "Tear down"
 destroy:
+    {{tf}} apply -target=aws_instance.host -var termination_protection=false
     {{tf}} destroy

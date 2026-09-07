@@ -83,11 +83,10 @@ allows EC2 and VPC only in Tokyo.
 1. IAM console, Users, Create user `terraform-trading`. No console access.
 2. Permissions: Create inline policy, JSON tab, paste
    `iam/terraform-policy.json`. It allows every `ec2:` action in
-   `ap-northeast-1` only, read-only describes elsewhere (for plans), and
-   denies `TerminateInstances` on terraform-managed resources unless the
-   session has MFA. Terraform therefore cannot destroy the host by
-   accident; a deliberate destroy is done from a console session with MFA
-   or by removing that statement.
+   `ap-northeast-1` only and read-only describes elsewhere (for plans).
+   The guard against destroying the host by accident is the instance's
+   termination protection (below), not the policy: an access-key session
+   has no MFA, so an MFA condition would only block `just destroy`.
 3. Security credentials, Create access key, "Application running outside
    AWS". Put it in `~/.aws/credentials`:
 
@@ -171,8 +170,9 @@ What the plan contains and why:
   cloud image grows its filesystem into the volume at first boot.
 - **AMI pinned after launch** (`lifecycle.ignore_changes = [ami]`): a newer
   Debian image never replaces the running host on a routine apply.
-- **Termination protection on** (`termination_protection = true`). To
-  destroy, set it to `false`, apply, then `just destroy`.
+- **Termination protection on** (`termination_protection = true`).
+  `just destroy` lifts it on the instance first (one extra confirmation),
+  then destroys everything; see "Tear down".
 
 ### 2. Inventory
 
@@ -254,6 +254,41 @@ data sockets spread across them.
 - **Lose the state file:** `terraform import` each resource by id (the
   instance, ENI, EIPs, SG, VPC pieces); tags `project=trading-bots` find
   them in the console.
+
+## Tear down: stop paying
+
+`just destroy` removes everything this repository created, and nothing it
+created keeps costing money afterwards:
+
+| resource | on destroy | cost after |
+|---|---|---|
+| the instance | terminated | none |
+| root volume | deleted with it (`delete_on_termination`) | none |
+| 3 elastic IPs | released back to AWS | none (an unattached EIP would cost the same USD 3.65 a month as an attached one; released is free) |
+| ENI, security group, subnet, route table, internet gateway, VPC, key pair | deleted | none (they were free anyway) |
+
+Nothing else was made: no snapshots, no CloudWatch beyond the free basic
+metrics, no load balancer, no NAT gateway. What remains is the IAM user
+(free) and the local state file (now empty). A second `terraform plan`
+shows a full set of resources to create again, and a destroy that is
+interrupted can simply be re-run.
+
+Two steps are deliberate. Termination protection is on, so `just destroy`
+first applies `termination_protection=false` to the instance, then
+destroys; terraform asks for a `yes` at each step. Read the destroy plan:
+it must list about 20 resources, all of them from this repository.
+
+**Stopping is not free.** A stopped instance stops the c7g charge (about
+USD 265) but keeps the 80 GB volume (about USD 8) and the three public
+IPv4 addresses (about USD 11), roughly USD 19 a month. Stop for a night,
+destroy for a month.
+
+Losing the elastic IPs matters if anything allow-lists them (the database
+host's Cloudflare Access rules, for instance): a later apply gets three
+new addresses. To keep them across a rebuild without paying for the
+instance, remove them from terraform's control first
+(`terraform state rm 'aws_eip.host'`), destroy the rest, and import them
+again later; they then cost USD 11 a month while idle.
 
 ## Decisions taken here, and open questions
 
