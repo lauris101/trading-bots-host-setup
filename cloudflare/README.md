@@ -53,6 +53,18 @@ one-time PIN mailed to that address, valid for `session_duration` (24h).
 TCP hostnames (`db.`, `ch.`) work the same way through `cloudflared access
 tcp` on the client, which is what the trading host's `db-proxy` runs.
 
+**IPv4 and IPv6 in the bypass list.** The rule matches the address
+Cloudflare sees the connection come from. A dual-stack machine prefers
+IPv6 for the edge, so a rule listing only its IPv4 fails for it (this is
+the "had to add both" you ran into). Measured on the dev box: `curl` from
+the shell arrives as `2a01:4f8:c2c:d113::1`, the same `curl` inside a
+docker container as `78.47.39.128`, because docker networks are IPv4-only
+unless enabled. So: list the dev box's IPv6 `/64` as well as its two IPv4
+addresses; the trading host needs only its elastic IPs, since the VPC has
+no IPv6 block and nothing on it can speak IPv6 to the outside; the
+containers on the database host (scraper, fluentd) are IPv4-only too. Both
+families are accepted in the same `ip` rule, one CIDR each.
+
 ## The process
 
 ### 0. Once, in the dashboard

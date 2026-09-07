@@ -11,9 +11,14 @@ allowed_emails = ["you@example.com"]
 # Machines that skip the login: the trading host's three elastic IPs
 # (`just ips` in ../trading-host) and the dev box. Fill in after the
 # trading host exists; an empty list is fine to start.
+# A machine that reaches Cloudflare over IPv6 shows up with its IPv6 source,
+# so list BOTH families for any host that has IPv6 (the dev box does; its
+# shell picks IPv6, its docker containers IPv4). The trading host has no
+# IPv6 at all (the VPC has none), so its three EIPs are the whole story.
 bypass_cidrs = [
-  # "13.x.x.x/32", "13.x.x.y/32", "13.x.x.z/32",
-  # "78.47.39.128/32", "167.233.189.172/32",
+  # "13.x.x.x/32", "13.x.x.y/32", "13.x.x.z/32",          # trading host EIPs
+  # "78.47.39.128/32", "167.233.189.172/32",             # dev box, IPv4
+  # "2a01:4f8:c2c:d113::/64",                            # dev box, IPv6
 ]
 
 # Optional: plain names for the hosts themselves, for ssh. Not used by the
