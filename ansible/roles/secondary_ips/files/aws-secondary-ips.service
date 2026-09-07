@@ -1,0 +1,11 @@
+[Unit]
+Description=Configure the ENI's secondary private IPs on the interface (elastic IPs)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/aws-secondary-ips
+
+[Install]
+WantedBy=multi-user.target

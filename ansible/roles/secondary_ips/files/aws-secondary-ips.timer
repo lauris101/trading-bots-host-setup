@@ -1,0 +1,10 @@
+[Unit]
+Description=Re-check the ENI's secondary IPs every minute
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

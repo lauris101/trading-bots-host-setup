@@ -1,0 +1,53 @@
+# Keep the kernel off the bot's cores and tune the network stack. The
+# kernel command line change needs a reboot; this role reboots only when it
+# actually changed the line (a fresh host, or a new hotpath_isolated_cpus).
+- name: Kernel keeps off the isolated cores (isolcpus, nohz_full, rcu_nocbs)
+  ansible.builtin.copy:
+    dest: /etc/default/grub.d/90-trading-hotpath.cfg
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-aws-setup). Match BOT_CPUSET in trading-bots/.env.
+      GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX isolcpus={{ hotpath_isolated_cpus }} nohz_full={{ hotpath_isolated_cpus }} rcu_nocbs={{ hotpath_isolated_cpus }}"
+  register: grub_dropin
+
+- name: Regenerate the grub config
+  ansible.builtin.command: update-grub
+  when: grub_dropin.changed
+  changed_when: true
+  notify: Reboot for the new kernel command line
+
+- name: Network and memory sysctls for a latency-sensitive box
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-trading-hotpath.conf
+    reload: true
+  loop:
+    # Socket buffers large enough that a burst from a venue never drops.
+    - { name: net.core.rmem_max, value: "16777216" }
+    - { name: net.core.wmem_max, value: "16777216" }
+    - { name: net.core.rmem_default, value: "1048576" }
+    - { name: net.core.netdev_max_backlog, value: "16384" }
+    - { name: net.ipv4.tcp_rmem, value: "4096 1048576 16777216" }
+    - { name: net.ipv4.tcp_wmem, value: "4096 1048576 16777216" }
+    # No slow-start after idle: the order socket is idle most of the time
+    # and then wants full speed on the first packet.
+    - { name: net.ipv4.tcp_slow_start_after_idle, value: "0" }
+    - { name: net.ipv4.tcp_no_metrics_save, value: "1" }
+    - { name: net.ipv4.tcp_fastopen, value: "3" }
+    # Swap is a latency cliff; the box has 16 GiB and no swap device anyway.
+    - { name: vm.swappiness, value: "1" }
+  loop_control:
+    label: "{{ item.name }}={{ item.value }}"
+
+- name: Current kernel command line
+  ansible.builtin.slurp:
+    src: /proc/cmdline
+  register: cmdline
+
+- name: Isolation already active, or a reboot is pending
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'isolation active in the running kernel'
+         if ('isolcpus=' ~ hotpath_isolated_cpus) in (cmdline.content | b64decode)
+         else 'isolation not in the running kernel yet (reboot pending at the end of the play)' }}

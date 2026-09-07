@@ -1,0 +1,49 @@
+# Docker Engine + compose plugin from Docker's own repository (Debian's
+# packages lag and split compose out). The trading-bot account joins the
+# docker group so deploy.sh runs without sudo.
+- name: Docker's apt repository (arm64, this release), key fetched from docker.com
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: https://download.docker.com/linux/debian
+    suites: ["{{ ansible_facts.distribution_release }}"]
+    components: [stable]
+    architectures: [arm64]
+    signed_by: https://download.docker.com/linux/debian/gpg
+    state: present
+
+- name: Docker packages
+  ansible.builtin.apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+    state: present
+    update_cache: true
+
+- name: Daemon config
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    mode: "0644"
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" },
+        "live-restore": true,
+        "features": { "buildkit": true }
+      }
+  notify: Restart docker
+
+- name: Docker is running
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: The trading-bot account may drive docker
+  ansible.builtin.user:
+    name: "{{ trading_bot_user }}"
+    groups: [docker]
+    append: true

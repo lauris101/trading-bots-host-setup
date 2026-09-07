@@ -1,0 +1,38 @@
+# SSH is the only door (the security group admits nothing else), so it is a
+# narrow one: keys only, no root, named users only.
+- name: sshd hardening drop-in
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/10-trading-host.conf
+    mode: "0600"
+    content: |
+      # Managed by ansible (trading-bots-aws-setup). Keys only, named users only.
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      AllowUsers {{ sshd_allow_users | join(' ') }}
+      X11Forwarding no
+      AllowAgentForwarding no
+      MaxAuthTries 4
+      LoginGraceTime 30
+      ClientAliveInterval 60
+      ClientAliveCountMax 3
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload sshd
+
+- name: Debian's cloud image drop-ins do not override ours
+  ansible.builtin.find:
+    paths: /etc/ssh/sshd_config.d
+    patterns: "*.conf"
+  register: sshd_dropins
+
+- name: Any drop-in that still allows passwords is disabled
+  ansible.builtin.replace:
+    path: "{{ item.path }}"
+    regexp: '^(\s*PasswordAuthentication\s+yes)'
+    replace: '# \1  (disabled by ansible)'
+  loop: "{{ sshd_dropins.files }}"
+  loop_control:
+    label: "{{ item.path }}"
+  when: item.path != '/etc/ssh/sshd_config.d/10-trading-host.conf'
+  notify: Reload sshd

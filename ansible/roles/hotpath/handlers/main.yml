@@ -1,0 +1,5 @@
+- name: Reboot for the new kernel command line
+  ansible.builtin.reboot:
+    msg: "trading-host: rebooting for isolcpus (ansible)"
+    reboot_timeout: 300
+    post_reboot_delay: 10

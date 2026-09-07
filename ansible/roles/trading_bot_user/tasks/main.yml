@@ -1,0 +1,65 @@
+# The account the stack runs under, with the SSH key you chose.
+- name: Resolve the public key (a key line, or a path to a .pub file)
+  ansible.builtin.set_fact:
+    trading_bot_public_key_line: >-
+      {{ trading_bot_public_key
+         if trading_bot_public_key is match('^(ssh-|ecdsa-|sk-)')
+         else lookup('ansible.builtin.file', trading_bot_public_key | expanduser) }}
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: The key line looks like an OpenSSH public key
+  ansible.builtin.assert:
+    that:
+      - trading_bot_public_key_line is match('^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp[0-9]+|sk-[a-z0-9-]+@openssh.com) [A-Za-z0-9+/=]+')
+    fail_msg: "trading_bot_public_key is not an OpenSSH public key line (got: {{ trading_bot_public_key_line[:40] }}...)"
+
+- name: Account exists
+  ansible.builtin.user:
+    name: "{{ trading_bot_user }}"
+    comment: trading-bots stack
+    shell: /bin/bash
+    create_home: true
+    groups: []
+    append: true
+    password_lock: true
+
+- name: Authorized key is exactly the one configured
+  ansible.posix.authorized_key:
+    user: "{{ trading_bot_user }}"
+    key: "{{ trading_bot_public_key_line }}"
+    exclusive: true
+
+- name: Passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/{{ trading_bot_user }}
+    mode: "0440"
+    content: "{{ trading_bot_user }} ALL=(ALL) NOPASSWD: ALL\n"
+    validate: /usr/sbin/visudo -cf %s
+  when: trading_bot_sudo | bool
+
+- name: No sudo when disabled
+  ansible.builtin.file:
+    path: /etc/sudoers.d/{{ trading_bot_user }}
+    state: absent
+  when: not (trading_bot_sudo | bool)
+
+- name: Data and log roots the stack mounts (DATA_BASE_DIR / LOGS_BASE_DIR)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ trading_bot_user }}"
+    group: "{{ trading_bot_user }}"
+    mode: "0750"
+  loop:
+    - "{{ data_base_dir }}/data/trading-bots"
+    - "{{ logs_base_dir }}/logs/trading-bots"
+
+- name: Hyperliquid key directory, owner-only (the key itself is placed by hand, never by this repo)
+  ansible.builtin.file:
+    path: /home/{{ trading_bot_user }}/.config/hl
+    state: directory
+    owner: "{{ trading_bot_user }}"
+    group: "{{ trading_bot_user }}"
+    mode: "0700"

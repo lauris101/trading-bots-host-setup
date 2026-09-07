@@ -1,0 +1,56 @@
+# Configure the trading host that terraform created. Idempotent: run it as
+# often as you like; only the `hotpath` role can reboot the box, and only
+# when it changed the kernel command line.
+#
+#   just provision            # everything
+#   just tags trading_bot_user,sshd
+- name: Trading host
+  hosts: all
+  become: true
+  vars_files:
+    - vars.yml
+
+  pre_tasks:
+    - name: Wait for the host to accept SSH (a fresh instance is still booting)
+      ansible.builtin.wait_for_connection:
+        timeout: 300
+      tags: [always]
+
+    - name: Gather facts
+      ansible.builtin.setup:
+      tags: [always]
+
+    - name: Refuse anything but Debian 13 on aarch64
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == "Debian"
+          - ansible_facts.distribution_major_version == "13"
+          - ansible_facts.architecture == "aarch64"
+        fail_msg: >-
+          expected Debian 13 on aarch64, found {{ ansible_facts.distribution }}
+          {{ ansible_facts.distribution_version }} on {{ ansible_facts.architecture }}
+      tags: [always]
+
+  roles:
+    - { role: base, tags: [base] }
+    - { role: sshd, tags: [sshd] }
+    - { role: trading_bot_user, tags: [trading_bot_user] }
+    - { role: docker, tags: [docker] }
+    - { role: secondary_ips, tags: [secondary_ips] }
+    - { role: hotpath, tags: [hotpath] }
+
+  post_tasks:
+    - name: Addresses the OS carries on the primary interface
+      ansible.builtin.command: ip -4 -brief addr show dev {{ ansible_facts.default_ipv4.interface }}
+      changed_when: false
+      register: addrs
+      tags: [always]
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}"
+          - "interface: {{ addrs.stdout }}"
+          - "elastic ips: {{ elastic_ips | default([]) }}"
+          - "next: ssh {{ trading_bot_user }}@{{ ansible_host }} and follow README 'Hand-over to trading-bots'"
+      tags: [always]

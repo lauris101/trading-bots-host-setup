@@ -1,0 +1,21 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+
+# Who may SSH in. One /32 per address you operate from; the security group
+# has no other inbound rule. (The example addresses are the dev box's two.)
+ssh_allowed_cidrs = [
+  "78.47.39.128/32",
+  "167.233.189.172/32",
+]
+
+# The key Ansible logs in with, as the AMI's `admin` user.
+admin_public_key = "ssh-ed25519 AAAA... you@laptop"
+
+# Defaults, shown so they are easy to change:
+# region                 = "ap-northeast-1"
+# availability_zone      = "ap-northeast-1a"
+# aws_profile            = "trading"        # a profile in ~/.aws/credentials
+# name                   = "trading-host"
+# instance_type          = "c7g.2xlarge"
+# root_volume_gb         = 80
+# elastic_ip_count       = 3
+# termination_protection = true

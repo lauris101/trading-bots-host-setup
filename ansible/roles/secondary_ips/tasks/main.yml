@@ -1,0 +1,42 @@
+# AWS routes every elastic IP to the ENI, but the kernel only uses an
+# address as a source if the interface carries it. This unit reads the
+# ENI's private addresses from the instance metadata and adds the missing
+# ones as /32s; a timer re-runs it every minute, so an EIP added later (or a
+# terraform apply that changes the count) is picked up without a reboot.
+# Independent of the network manager the image happens to use.
+- name: Helper script
+  ansible.builtin.copy:
+    src: aws-secondary-ips
+    dest: /usr/local/sbin/aws-secondary-ips
+    mode: "0755"
+
+- name: Service and timer
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: /etc/systemd/system/{{ item }}
+    mode: "0644"
+  loop:
+    - aws-secondary-ips.service
+    - aws-secondary-ips.timer
+  notify: Reload systemd
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: Timer enabled and running; run the service once now
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - aws-secondary-ips.timer
+    - aws-secondary-ips.service
+
+- name: What the interface carries now
+  ansible.builtin.command: ip -4 -brief addr show dev {{ ansible_facts.default_ipv4.interface }}
+  changed_when: false
+  register: secondary_ips_now
+
+- name: Show it
+  ansible.builtin.debug:
+    msg: "{{ secondary_ips_now.stdout }}"

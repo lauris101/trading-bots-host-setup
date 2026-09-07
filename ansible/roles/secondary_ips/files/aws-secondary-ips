@@ -1,0 +1,29 @@
+#!/bin/sh
+# Put every private IPv4 the primary ENI owns onto the interface, so the
+# kernel can use each as a source address (one elastic IP maps to each).
+# Reads the instance metadata (IMDSv2). Idempotent; safe to run every minute.
+# Addresses AWS no longer lists are left alone (a reboot clears them).
+set -eu
+
+IMDS="http://169.254.169.254/latest"
+TOKEN="$(curl -sf -X PUT "$IMDS/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 60")" || {
+  echo "aws-secondary-ips: no IMDS token (not on EC2?)" >&2; exit 0
+}
+md() { curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" "$IMDS/meta-data/$1"; }
+
+MAC="$(md mac)"
+PRIMARY="$(md local-ipv4)"
+IFACE="$(ip -o link | awk -v mac="$MAC" 'tolower($0) ~ mac {sub(":", "", $2); print $2; exit}')"
+[ -n "$IFACE" ] || { echo "aws-secondary-ips: no interface with mac $MAC" >&2; exit 1; }
+
+added=0
+for ip in $(md "network/interfaces/macs/$MAC/local-ipv4s"); do
+  [ "$ip" = "$PRIMARY" ] && continue
+  if ! ip -4 addr show dev "$IFACE" | grep -q "inet $ip/"; then
+    ip addr add "$ip/32" dev "$IFACE" label "$IFACE:eip"
+    echo "aws-secondary-ips: added $ip/32 to $IFACE"
+    added=$((added + 1))
+  fi
+done
+[ "$added" -eq 0 ] && echo "aws-secondary-ips: $IFACE already carries every address"
+exit 0

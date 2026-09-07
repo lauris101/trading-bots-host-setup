@@ -1,0 +1,28 @@
+# Copy to vars.yml (gitignored) and fill in. Loaded by site.yml.
+
+# The account the trading stack runs under. Its SSH key is yours to pick:
+# a public key line, or a path to a .pub file (~ is expanded).
+trading_bot_user: trading-bot
+trading_bot_public_key: "~/.ssh/id_ed25519_trading_bot.pub"
+# Passwordless sudo for that account. Needed for deploy.sh's apt installs
+# and for the log/data directories; one operator, one box, so on by default.
+trading_bot_sudo: true
+
+# Who else may SSH in. The AMI's admin user stays (Ansible logs in as it).
+sshd_allow_users:
+  - admin
+  - "{{ trading_bot_user }}"
+
+# Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), for the bot's
+# spinning threads. Must match BOT_CPUSET in trading-bots/.env. c7g.2xlarge
+# has 8 cores with no SMT: 0-1 for the OS and the other services, 2-5 for
+# the bot, 6-7 spare.
+hotpath_isolated_cpus: "2-5"
+
+# Where the stack keeps data and logs (DATA_BASE_DIR / LOGS_BASE_DIR in the
+# trading-bots .env). On the 80 GB root volume.
+data_base_dir: /data
+logs_base_dir: /logs
+
+# Hostname to set on the box.
+host_name: trading-host

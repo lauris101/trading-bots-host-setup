@@ -1,0 +1,75 @@
+# OS baseline: packages the deploy scripts expect, time, hostname, updates.
+- name: Set the hostname
+  ansible.builtin.hostname:
+    name: "{{ host_name }}"
+
+- name: Hostname resolves locally
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s'
+    line: "127.0.1.1 {{ host_name }}"
+
+- name: Timezone is UTC (the logs, the venues and the database all speak UTC)
+  community.general.timezone:
+    name: Etc/UTC
+
+- name: Apt cache is fresh
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Packages the stack's scripts and an operator need
+  ansible.builtin.apt:
+    name:
+      - sudo
+      - git
+      - just
+      - jq
+      - curl
+      - openssl
+      - zstd
+      - unzip
+      - chrony
+      - unattended-upgrades
+      - htop
+      - iproute2
+      - ethtool
+      - linux-cpupower
+      - python3
+    state: present
+
+- name: Chrony syncs from the Amazon Time Sync Service (link-local, no internet hop)
+  ansible.builtin.copy:
+    dest: /etc/chrony/sources.d/aws.sources
+    mode: "0644"
+    content: |
+      # Amazon Time Sync Service: a stratum-1 source on the instance's own link.
+      server 169.254.169.123 prefer iburst minpoll 4 maxpoll 4
+  notify: Restart chrony
+
+- name: Chrony is running
+  ansible.builtin.service:
+    name: chrony
+    state: started
+    enabled: true
+
+- name: Unattended security upgrades, no automatic reboot
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/52trading-host
+    mode: "0644"
+    content: |
+      // Security updates install themselves; the box never reboots on its own.
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      Unattended-Upgrade::Automatic-Reboot "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+
+- name: Journald keeps a bounded amount of logs (the services log to files via fluentd anyway)
+  ansible.builtin.copy:
+    dest: /etc/systemd/journald.conf.d/size.conf
+    mode: "0644"
+    content: |
+      [Journal]
+      SystemMaxUse=500M
+      MaxRetentionSec=14day
+  notify: Restart journald
