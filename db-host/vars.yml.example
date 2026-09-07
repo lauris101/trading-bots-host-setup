@@ -19,6 +19,9 @@ crowdsec_whitelist_cidrs:
   - "78.47.39.128/32"
   - "167.233.189.172/32"
 crowdsec_enroll_key: ""
+# CrowdSec's local API (loopback only) defaults to 8080, which control uses
+# on the trading host; it listens here instead. Same value on both hosts.
+crowdsec_lapi_port: 8770
 # Debian 13 hosts: bookworm (CrowdSec has no trixie suite yet). Debian 12
 # hosts: bookworm as well.
 crowdsec_repo_suite: bookworm

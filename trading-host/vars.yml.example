@@ -25,6 +25,9 @@ crowdsec_whitelist_cidrs:
 # Optional: an enrollment key from app.crowdsec.net to see alerts in the
 # console. Empty = not enrolled (the community blocklist works regardless).
 crowdsec_enroll_key: ""
+# CrowdSec's local API (loopback only) defaults to 8080, which control uses
+# on the trading host; it listens here instead. Same value on both hosts.
+crowdsec_lapi_port: 8770
 # CrowdSec's repo has no trixie suite yet; its bookworm packages are static
 # binaries and run on trixie. Change when trixie appears.
 crowdsec_repo_suite: bookworm

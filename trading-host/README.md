@@ -210,7 +210,7 @@ Roles, in order:
 | `sshd` | keys only, no root, `AllowUsers admin trading-bot`, short grace time; disables any image drop-in that still allows passwords |
 | `trading_bot_user` | the account, its one authorized key (exclusive), sudoers entry, `/data/data/trading-bots` and `/logs/logs/trading-bots` owned by it, an owner-only `~/.config/hl` for the venue key you place by hand |
 | `docker` | Docker Engine + buildx + compose plugin from download.docker.com (arm64), `live-restore`, `trading-bot` in the docker group |
-| `crowdsec` | CrowdSec security engine (upstream repo, 1.8) reading sshd from the journal with the `linux` and `sshd` collections, the nftables firewall bouncer (DROP), a whitelist for `crowdsec_whitelist_cidrs`, optional console enrollment. See "CrowdSec" below |
+| `crowdsec` | CrowdSec security engine (upstream repo, 1.8) reading sshd from the journal with the `linux` and `sshd` collections, its local API moved off 8080 (control's port) to `crowdsec_lapi_port`, the nftables firewall bouncer (DROP), a whitelist for `crowdsec_whitelist_cidrs`, optional console enrollment. See "CrowdSec" below |
 | `secondary_ips` | `aws-secondary-ips` script + systemd service and 1-minute timer: reads the ENI's addresses from the metadata and adds the missing ones as `/32`s. Without this the kernel cannot send from the second and third elastic IP |
 | `hotpath` | `isolcpus nohz_full rcu_nocbs` for the bot's cores via a grub drop-in (reboot only when the line changed), and sysctls: 16 MB socket buffers, no slow-start after idle, TCP fast open, swappiness 1 |
 
@@ -242,8 +242,9 @@ sudo cscli metrics                              # lines read, scenarios hit, bou
 sudo nft list table ip crowdsec                 # the live drop set
 ```
 
-Choices made in the role: DROP rather than REJECT (a scanner learns
-nothing), IPv6 off (the VPC has none), packages from CrowdSec's own
+Choices made in the role: the local API on `127.0.0.1:8770` instead of its
+default 8080, which is control's port (`crowdsec_lapi_port`); DROP rather
+than REJECT (a scanner learns nothing); IPv6 off (the VPC has none); packages from CrowdSec's own
 repository at its `bookworm` suite (no `trixie` suite exists yet; the
 binaries are static and run on trixie; Debian's own `crowdsec` package is
 1.4 from 2023 and cannot load current hub collections). Set

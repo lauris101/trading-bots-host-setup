@@ -90,6 +90,26 @@
   when: crowdsec_whitelist_cidrs | length == 0
   notify: Restart crowdsec
 
+# CrowdSec's local API defaults to 127.0.0.1:8080, the port control
+# publishes on the trading host. Move it (both the server side and the two
+# clients: the agent's credentials file and, below, the bouncer).
+- name: Local API listens on {{ crowdsec_lapi_port }}, not 8080
+  ansible.builtin.replace:
+    path: /etc/crowdsec/config.yaml
+    regexp: '^(\s*listen_uri:\s*)127\.0\.0\.1:\d+'
+    replace: '\g<1>127.0.0.1:{{ crowdsec_lapi_port }}'
+  notify: Restart crowdsec
+
+- name: The agent reaches the local API there
+  ansible.builtin.replace:
+    path: /etc/crowdsec/local_api_credentials.yaml
+    regexp: '^(url:\s*http://127\.0\.0\.1:)\d+'
+    replace: '\g<1>{{ crowdsec_lapi_port }}'
+  notify: Restart crowdsec
+
+- name: Apply the port change before anything registers against the API
+  ansible.builtin.meta: flush_handlers
+
 - name: Engine is running
   ansible.builtin.service:
     name: crowdsec
@@ -101,7 +121,7 @@
     name: crowdsec-firewall-bouncer-nftables
     state: present
 
-- name: Bouncer drops (not rejects) and leaves IPv6 alone (the VPC has none)
+- name: Bouncer drops (not rejects), leaves IPv6 alone, talks to the API on its port
   ansible.builtin.lineinfile:
     path: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
     regexp: "^{{ item.key }}:"
@@ -110,6 +130,7 @@
     - { key: mode, value: nftables }
     - { key: deny_action, value: DROP }
     - { key: disable_ipv6, value: "true" }
+    - { key: api_url, value: "http://127.0.0.1:{{ crowdsec_lapi_port }}/" }
   loop_control:
     label: "{{ item.key }}={{ item.value }}"
   notify: Restart bouncer
