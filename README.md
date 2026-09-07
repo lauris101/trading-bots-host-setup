@@ -27,8 +27,46 @@ laptop                                     AWS (ap-northeast-1)
 ### 0. Tools and credentials
 
 - `terraform` >= 1.6 (or OpenTofu: set `tf := "tofu -chdir=terraform"` in
-  the justfile), `ansible-core` >= 2.15 (`just tools` installs it with pipx
-  and pulls the two collections), `just`.
+  the justfile), `ansible-core` >= 2.15 with the `ansible.posix` and
+  `community.general` collections, `just`, and the `aws` CLI for the odd
+  check. `just tools` installs them (Homebrew on a Mac, apt and pipx on
+  Debian) and pulls the collections.
+
+#### On a Mac
+
+```bash
+# Homebrew, if not there yet: https://brew.sh
+brew install just git
+git clone git@github.com:lauris101/trading-bots-aws-setup.git && cd trading-bots-aws-setup
+just tools                     # terraform (HashiCorp tap), ansible, awscli, the collections
+
+# one SSH key for the box (skip if you already have one you want to use)
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519_trading -C "trading-host"
+cat ~/.ssh/id_ed25519_trading.pub      # -> ssh_public_key in terraform.tfvars
+
+# tell ssh to use it for the host (works for `just ssh`, `just ssh-bot`, ansible)
+cat >> ~/.ssh/config <<'EOF'
+Host trading-host *.compute.amazonaws.com
+  IdentityFile ~/.ssh/id_ed25519_trading
+  IdentitiesOnly yes
+  ServerAliveInterval 30
+EOF
+```
+
+Notes for macOS: Terraform comes from the `hashicorp/tap` because the
+core Homebrew formula stopped at the last MPL release. `brew install
+ansible` gives the full community package (Python included), so no pipx.
+If `ansible-playbook` ever dies with an `objc ... fork()` crash, put
+`export OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES` in your shell profile;
+it is a macOS Python quirk, not an Ansible bug. The AWS credentials file is
+`~/.aws/credentials` on a Mac too, and `aws configure --profile trading`
+writes it for you. Apple silicon or Intel both work: nothing here runs
+locally except the two tools.
+
+If `just ssh`'s inventory host is the bare IP rather than a name, add that
+IP to the `Host` line above or pass `-i ~/.ssh/id_ed25519_trading`; the
+inventory sets `ansible_user`, and Ansible reads `~/.ssh/config` like ssh
+does.
 - AWS credentials: see "Credentials" just below. Nothing is stored in this
   repository.
 - One SSH public key. Terraform gives it to the AMI's `admin` user at

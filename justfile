@@ -4,11 +4,21 @@
 tf := "terraform -chdir=terraform"
 ansible := "ansible-playbook -i ansible/inventory/hosts.yml"
 
-# Install the two tools (Debian/Ubuntu laptop): terraform via HashiCorp's apt repo, ansible via pipx
+# Install the tools: Homebrew on a Mac, apt + pipx on Debian/Ubuntu (README "Tools")
 tools:
-    @command -v terraform >/dev/null || echo "terraform: https://developer.hashicorp.com/terraform/install (or: apt install opentofu, and set tf := tofu here)"
-    @command -v ansible-playbook >/dev/null || (command -v pipx >/dev/null || sudo apt-get install -y pipx; pipx install --include-deps ansible-core)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if [ "$(uname)" = Darwin ]; then
+        command -v brew >/dev/null || { echo "install Homebrew first: https://brew.sh"; exit 1; }
+        brew list hashicorp/tap/terraform >/dev/null 2>&1 || brew install hashicorp/tap/terraform
+        brew list ansible >/dev/null 2>&1 || brew install ansible
+        brew list awscli >/dev/null 2>&1 || brew install awscli
+    else
+        command -v terraform >/dev/null || echo "terraform: https://developer.hashicorp.com/terraform/install (or apt install opentofu and set tf := \"tofu -chdir=terraform\" here)"
+        command -v ansible-playbook >/dev/null || { command -v pipx >/dev/null || sudo apt-get install -y pipx; pipx install --include-deps ansible-core; }
+    fi
     ansible-galaxy collection install -r ansible/requirements.yml
+    terraform version | head -1; ansible --version | head -1
 
 # --- AWS resources (terraform) ------------------------------------------------
 
