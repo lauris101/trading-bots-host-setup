@@ -117,16 +117,21 @@ resource "cloudflare_zero_trust_access_policy" "bypass_machines" {
   ]
 }
 
-# One application per hostname. TCP services (postgres, clickhouse native)
-# are self-hosted apps too: `cloudflared access tcp` on the client does the
-# login (or is let through by the bypass rule) and forwards the port.
-resource "cloudflare_zero_trust_access_application" "hostname" {
-  for_each = local.hostnames
+# One application per host, covering every hostname on that host's tunnel.
+# All of a host's hostnames share the two policies and one login session.
+# TCP services (postgres, clickhouse native) are covered the same way:
+# `cloudflared access tcp` on the client does the login (or is let through
+# by the bypass rule) and forwards the port.
+resource "cloudflare_zero_trust_access_application" "host" {
+  for_each = local.hosts
 
-  account_id       = var.account_id
-  name             = each.value.fqdn
-  domain           = each.value.fqdn
-  type             = "self_hosted"
+  account_id = var.account_id
+  name       = each.value.name
+  type       = "self_hosted"
+  domain     = "${sort(keys(each.value.ingress))[0]}.${var.domain}"
+  destinations = [
+    for label in sort(keys(each.value.ingress)) : { type = "public", uri = "${label}.${var.domain}" }
+  ]
   session_duration = var.session_duration
   # Machines first: a source address on the bypass list is answered without
   # a login page; everyone else is asked to log in.

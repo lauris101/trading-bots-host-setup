@@ -1,8 +1,8 @@
 # cloudflare
 
 The Cloudflare side of both hosts, as Terraform: one tunnel per host, a
-hostname per service under `lz-co.xyz`, and a Zero Trust Access application
-in front of each hostname. Neither host opens a port for any of this:
+hostname per service under `lz-co.xyz`, and one Zero Trust Access
+application per host covering its hostnames. Neither host opens a port for any of this:
 `cloudflared` on the host dials out to Cloudflare, Cloudflare terminates
 TLS, checks the policy, and forwards through the tunnel.
 
@@ -26,7 +26,7 @@ TLS, checks the policy, and forwards through the tunnel.
 | `..._tunnel_cloudflared_config` | 2 | the ingress table, remote-managed: the host needs only its token, no config file |
 | `cloudflare_dns_record` | 7 | one proxied **CNAME** per hostname to `<tunnel id>.cfargotunnel.com` |
 | `cloudflare_zero_trust_access_policy` | 2 | "allowed people" (Allow, by email) and "machines by source address" (Bypass, by CIDR) |
-| `cloudflare_zero_trust_access_application` | 7 | one per hostname, both policies attached, bypass first |
+| `cloudflare_zero_trust_access_application` | 2 | one per host, listing all of that host's hostnames as destinations; both policies attached, bypass first; one login session per host |
 
 **DNS.** Each hostname is a proxied CNAME to `<tunnel id>.cfargotunnel.com`.
 `cloudflared` on the host connects outbound to Cloudflare; the ingress table
@@ -34,7 +34,7 @@ maps the hostname to a local service on the host (`tcp://127.0.0.1:5432`).
 No host IP is published. `host_a_records` optionally adds plain A records
 for the hosts themselves (SSH names); off by default.
 
-**Access, the allow-list model.** Every hostname is an Access application.
+**Access, the allow-list model.** Each host's hostnames form one Access application.
 A request from a `bypass_cidrs` address (the trading host's elastic IPs, so
 control and db-proxy reach the database; the dev box) is answered without
 a login. Anyone else gets Cloudflare's login page and must be in
@@ -63,7 +63,7 @@ apply:
   unique per account);
 - an existing DNS record on one of the hostnames (e.g. an A record for
   `app.lz-co.xyz` made by hand);
-- an existing Access application on one of the hostnames.
+- an existing Access application already covering one of the hostnames.
 
 To keep such an object and let Terraform manage it, import it instead of
 deleting it (ids from the dashboard or the API):
@@ -71,7 +71,7 @@ deleting it (ids from the dashboard or the API):
 ```bash
 terraform import 'cloudflare_zero_trust_tunnel_cloudflared.host["app"]' <account_id>/<tunnel_id>
 terraform import 'cloudflare_dns_record.hostname["app/app"]' <zone_id>/<record_id>
-terraform import 'cloudflare_zero_trust_access_application.hostname["app/app"]' <account_id>/<app_id>
+terraform import 'cloudflare_zero_trust_access_application.host["app"]' <account_id>/<app_id>
 terraform import cloudflare_zero_trust_access_policy.allow_people <account_id>/<policy_id>
 ```
 
@@ -101,7 +101,7 @@ only what this configuration created.
 ```bash
 cp terraform.tfvars.example terraform.tfvars   # ids, domain, your email
 just init
-just plan          # 2 tunnels, 2 configs, 7 CNAMEs, 2 policies, 7 apps
+just plan          # 2 tunnels, 2 configs, 7 CNAMEs, 2 policies, 2 apps
 just apply
 just hostnames
 ```
@@ -136,8 +136,9 @@ know, and the Access login page before either.
 ## Day 2
 
 - **Add a hostname:** add a label => origin to `app_ingress` or
-  `db_ingress` in `terraform.tfvars`, `just apply`. CNAME, ingress rule and
-  Access app appear together; the host needs no change.
+  `db_ingress` in `terraform.tfvars`, `just apply`. CNAME and ingress rule
+  are created and the host's Access application gains the destination; the
+  host needs no change.
 - **Add a person:** `allowed_emails`, apply. **Remove one:** same; their
   session ends at the next check.
 - **Rotate a tunnel:** `terraform taint 'random_bytes.tunnel_secret["db"]'`,

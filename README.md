@@ -8,7 +8,7 @@ independent parts. Each has its own README, `justfile` and state; run
 |---|---|---|
 | [`trading-host/`](trading-host/README.md) | terraform + ansible | the AWS Graviton box in Tokyo: VPC, `c7g.2xlarge` on Debian 13, 80 GB root, 3 elastic IPs, SSH-only security group; then the OS: `trading-bot` account, Docker, CrowdSec, secondary IPs, core isolation |
 | [`db-host/`](db-host/README.md) | ansible | a rented Debian VPS handed over as root + password, turned into the same keys-only `trading-bot` + Docker + CrowdSec box, with a swapfile |
-| [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host, the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per hostname (people by email, machines by source address) |
+| [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host, the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per host (people by email, machines by source address) |
 | `ansible/roles/` | shared | the roles both playbooks use: `base`, `sshd`, `trading_bot_user`, `docker`, `crowdsec`, `secondary_ips`, `hotpath`, `swapfile` |
 
 The services (postgres, ClickHouse, the bot, control, the scraper,
