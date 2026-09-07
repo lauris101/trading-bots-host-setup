@@ -86,9 +86,10 @@ examples with the same values (SSH key, account and zone ids, emails,
 bypass list). A plan that shows changes after a restore means a tfvars
 value differs from what was applied.
 
-R2 does not version objects. `just state-backup` in a part writes a dated
-copy of its state to `~/tfstate-backups/`; run it before an operation that
-replaces resources. To go back to a copy: `terraform state push <file>`.
+R2 does not version objects. `just apply` and `just destroy` first run
+`just state-backup`, which writes a dated copy of the current state to
+`~/tfstate-backups/` (the last 30 per part are kept; a first apply with no
+state skips it). To go back to a copy: `terraform state push <file>`.
 
 If a state file is lost with no copy, the resources still exist and are
 re-adopted with `terraform import`, one per resource, by id (tags

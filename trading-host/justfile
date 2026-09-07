@@ -31,11 +31,18 @@ init:
 init-migrate:
     {{tf}} init -backend-config="$(pwd)/../backend.hcl" -migrate-state
 
-# Save a copy of the current state to ~/tfstate-backups (R2 keeps no versions)
+# Save a copy of the current state to ~/tfstate-backups (R2 keeps no versions); runs before every apply/destroy
 state-backup:
+    #!/usr/bin/env bash
+    set -euo pipefail
     mkdir -p ~/tfstate-backups
-    {{tf}} state pull > ~/tfstate-backups/$(basename $(pwd))-$(date -u +%Y%m%dT%H%M%SZ).tfstate
-    ls -la ~/tfstate-backups | tail -3
+    f=~/tfstate-backups/$(basename "$(pwd)")-$(date -u +%Y%m%dT%H%M%SZ).tfstate
+    {{tf}} state pull > "$f"
+    if [ ! -s "$f" ] || [ "$(jq -r '.resources | length' "$f" 2>/dev/null || echo 0)" = "0" ]; then
+        rm -f "$f"; echo "state-backup: no state yet, nothing to copy"; exit 0
+    fi
+    ls -t ~/tfstate-backups/$(basename "$(pwd)")-*.tfstate | tail -n +31 | xargs -r rm --   # keep the last 30
+    echo "state-backup: $f ($(jq '.resources | length' "$f") resources)"
 
 # Show what would change
 plan:
@@ -43,8 +50,9 @@ plan:
     {{tf}} validate
     {{tf}} plan
 
-# Create or update the AWS resources, then refresh the ansible inventory
+# Create or update the AWS resources (state backed up first), then refresh the ansible inventory
 apply:
+    just state-backup
     {{tf}} apply
     just inventory
 
@@ -92,5 +100,6 @@ latency samples="20":
 
 # Destroy everything: lift termination protection on the instance (confirm), then destroy (confirm). README "Tear down"
 destroy:
+    just state-backup
     {{tf}} apply -target=aws_instance.host -var termination_protection=false
     {{tf}} destroy
