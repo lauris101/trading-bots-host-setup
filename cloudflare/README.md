@@ -48,6 +48,36 @@ Cloudflare sees. A dual-stack machine connects over IPv6, so list both its
 IPv4 and IPv6 ranges. Docker containers are IPv4-only by default. The
 trading host has no IPv6 (the VPC has none): its elastic IPs suffice.
 
+## Scope, and existing objects
+
+Terraform manages only the resources listed above, all created new and
+tracked in its state. Existing applications, policies, tunnels, DNS records,
+identity providers and Zero Trust settings are neither read nor changed;
+`just plan` must show creates only.
+
+Names of Access policies and applications are not unique in Cloudflare, so a
+same-named existing policy does not conflict. These do conflict and fail the
+apply:
+
+- a tunnel already named `trading-host` or `db-host` (tunnel names are
+  unique per account);
+- an existing DNS record on one of the hostnames (e.g. an A record for
+  `app.lz-co.xyz` made by hand);
+- an existing Access application on one of the hostnames.
+
+To keep such an object and let Terraform manage it, import it instead of
+deleting it (ids from the dashboard or the API):
+
+```bash
+terraform import 'cloudflare_zero_trust_tunnel_cloudflared.host["app"]' <account_id>/<tunnel_id>
+terraform import 'cloudflare_dns_record.hostname["app/app"]' <zone_id>/<record_id>
+terraform import 'cloudflare_zero_trust_access_application.hostname["app/app"]' <account_id>/<app_id>
+terraform import cloudflare_zero_trust_access_policy.allow_people <account_id>/<policy_id>
+```
+
+Otherwise delete the object in the dashboard first. `just destroy` removes
+only what this configuration created.
+
 ## The process
 
 ### 0. Once, in the dashboard
