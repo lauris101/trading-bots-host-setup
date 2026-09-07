@@ -1,11 +1,9 @@
 # Copy to terraform.tfvars (gitignored) and fill in.
 
-# Who may SSH in. One /32 per address you operate from; the security group
-# has no other inbound rule. (The example addresses are the dev box's two.)
-ssh_allowed_cidrs = [
-  "78.47.39.128/32",
-  "167.233.189.172/32",
-]
+# Who may SSH in: the only inbound rule. Default (variables.tf) is the whole
+# internet, because the laptop has no fixed address; sshd is key-only and
+# CrowdSec bans brute-forcers. With a fixed address, list /32s instead:
+# ssh_allowed_cidrs = ["78.47.39.128/32", "167.233.189.172/32"]
 
 # The one SSH key: the AMI's `admin` user (Ansible's login) and, through
 # Ansible, the trading-bot account.

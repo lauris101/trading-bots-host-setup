@@ -36,6 +36,7 @@
     - { role: sshd, tags: [sshd] }
     - { role: trading_bot_user, tags: [trading_bot_user] }
     - { role: docker, tags: [docker] }
+    - { role: crowdsec, tags: [crowdsec] }
     - { role: secondary_ips, tags: [secondary_ips] }
     - { role: hotpath, tags: [hotpath] }
 

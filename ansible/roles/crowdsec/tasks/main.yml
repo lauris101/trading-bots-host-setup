@@ -1,0 +1,141 @@
+# CrowdSec: the security engine reads sshd's journal, and the nftables
+# bouncer drops the offending source for hours; the engine also pulls the
+# community blocklist, so addresses seen brute-forcing elsewhere are dropped
+# before their first attempt here. Port 22 is open to the internet (no
+# static IP on the laptop), so this is the layer that makes that tolerable,
+# with sshd itself key-only.
+#
+# Packages come from CrowdSec's own repository, `bookworm` suite: it has no
+# trixie suite yet, and the packages are static Go binaries that run on
+# trixie unchanged (Debian's own crowdsec package is 1.4 from 2023, too old
+# to take current hub collections). Flip crowdsec_repo_suite when trixie
+# appears.
+- name: nftables is present (the bouncer drives it)
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+
+- name: CrowdSec's apt repository
+  ansible.builtin.deb822_repository:
+    name: crowdsec
+    types: [deb]
+    uris: https://packagecloud.io/crowdsec/crowdsec/debian
+    suites: ["{{ crowdsec_repo_suite }}"]
+    components: [main]
+    architectures: [arm64]
+    signed_by: https://packagecloud.io/crowdsec/crowdsec/gpgkey
+    state: present
+  register: crowdsec_repo
+
+- name: Security engine
+  ansible.builtin.apt:
+    name: crowdsec
+    state: present
+    update_cache: "{{ crowdsec_repo.changed }}"
+
+- name: sshd is read from the journal (Debian 13 has no /var/log/auth.log without rsyslog)
+  ansible.builtin.copy:
+    dest: /etc/crowdsec/acquis.d/sshd-journal.yaml
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-aws-setup).
+      source: journalctl
+      journalctl_filter:
+        - "_SYSTEMD_UNIT=ssh.service"
+      labels:
+        type: syslog
+  notify: Restart crowdsec
+
+- name: The file-based sshd acquisition the package guesses is disabled if it points at files that do not exist
+  ansible.builtin.replace:
+    path: /etc/crowdsec/acquis.yaml
+    regexp: '^(\s*-\s*/var/log/auth\.log.*)$'
+    replace: '# \1  (journal instead; ansible)'
+  notify: Restart crowdsec
+
+- name: Hub index is current
+  ansible.builtin.command: cscli hub update
+  changed_when: false
+
+- name: Collections for a Linux host running sshd
+  ansible.builtin.command: cscli collections install {{ item }}
+  register: coll
+  changed_when: "'already' not in coll.stdout and 'already' not in coll.stderr and 'Nothing to do' not in coll.stdout"
+  loop:
+    - crowdsecurity/linux
+    - crowdsecurity/sshd
+  notify: Restart crowdsec
+
+- name: Addresses never to ban (the dev box, anything with a fixed IP you trust)
+  ansible.builtin.copy:
+    dest: /etc/crowdsec/parsers/s02-enrich/99-trading-whitelist.yaml
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-aws-setup).
+      name: trading/whitelist
+      description: "addresses that are never banned"
+      whitelist:
+        reason: "trusted operator addresses"
+        cidr:
+      {% for c in crowdsec_whitelist_cidrs %}
+          - "{{ c }}"
+      {% endfor %}
+  when: crowdsec_whitelist_cidrs | length > 0
+  notify: Restart crowdsec
+
+- name: No whitelist file when the list is empty
+  ansible.builtin.file:
+    path: /etc/crowdsec/parsers/s02-enrich/99-trading-whitelist.yaml
+    state: absent
+  when: crowdsec_whitelist_cidrs | length == 0
+  notify: Restart crowdsec
+
+- name: Engine is running
+  ansible.builtin.service:
+    name: crowdsec
+    state: started
+    enabled: true
+
+- name: Firewall bouncer (nftables). Its postinst registers it with the local API.
+  ansible.builtin.apt:
+    name: crowdsec-firewall-bouncer-nftables
+    state: present
+
+- name: Bouncer drops (not rejects) and leaves IPv6 alone (the VPC has none)
+  ansible.builtin.lineinfile:
+    path: /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml
+    regexp: "^{{ item.key }}:"
+    line: "{{ item.key }}: {{ item.value }}"
+  loop:
+    - { key: mode, value: nftables }
+    - { key: deny_action, value: DROP }
+    - { key: disable_ipv6, value: "true" }
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+  notify: Restart bouncer
+
+- name: Bouncer is running
+  ansible.builtin.service:
+    name: crowdsec-firewall-bouncer
+    state: started
+    enabled: true
+
+- name: Enroll in the CrowdSec console when a key is given (optional; view alerts in a browser)
+  ansible.builtin.command: cscli console enroll --name {{ host_name }} {{ crowdsec_enroll_key }}
+  when: crowdsec_enroll_key | length > 0
+  register: enroll
+  changed_when: "'already enrolled' not in enroll.stdout and 'already enrolled' not in enroll.stderr"
+  failed_when: enroll.rc != 0 and 'already' not in enroll.stderr
+  notify: Restart crowdsec
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: What the engine sees
+  ansible.builtin.command: cscli metrics show acquisition bouncers
+  changed_when: false
+  register: cs_metrics
+
+- name: Show it
+  ansible.builtin.debug:
+    msg: "{{ cs_metrics.stdout_lines }}"

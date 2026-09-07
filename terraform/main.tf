@@ -47,10 +47,12 @@ resource "aws_route_table_association" "public" {
 
 # --- firewall ----------------------------------------------------------------
 
-# The security group IS the firewall: stateful, enforced at the ENI, not
-# bypassable from inside the OS. Inbound is SSH from the allow-list only.
-# Everything the host runs (Cloudflare tunnel, venue websockets, the
-# database over the tunnel) is outbound.
+# The security group is the outer firewall: stateful, enforced at the ENI,
+# not bypassable from inside the OS. Inbound is SSH only, from
+# ssh_allowed_cidrs (the internet by default: no fixed address to allow;
+# CrowdSec on the host bans brute-forcers). Everything the host runs
+# (Cloudflare tunnel, venue websockets, the database over the tunnel) is
+# outbound.
 resource "aws_security_group" "host" {
   name        = "${var.name}-host"
   description = "SSH from the allow-list; all outbound"

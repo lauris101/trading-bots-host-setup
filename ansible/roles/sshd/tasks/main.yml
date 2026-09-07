@@ -13,8 +13,12 @@
       AllowUsers {{ sshd_allow_users | join(' ') }}
       X11Forwarding no
       AllowAgentForwarding no
-      MaxAuthTries 4
-      LoginGraceTime 30
+      MaxAuthTries 3
+      LoginGraceTime 20
+      # Unauthenticated connections in flight: start dropping at 10, all at 30.
+      MaxStartups 10:50:30
+      PerSourceMaxStartups 5
+      PerSourceNetBlockSize 32:64
       ClientAliveInterval 60
       ClientAliveCountMax 3
     validate: /usr/sbin/sshd -t -f %s

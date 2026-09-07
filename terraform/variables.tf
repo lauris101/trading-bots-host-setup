@@ -46,12 +46,13 @@ variable "elastic_ip_count" {
 }
 
 variable "ssh_allowed_cidrs" {
-  description = "CIDRs allowed to reach port 22. This is the only inbound rule. Put your own addresses here (a /32 each); never 0.0.0.0/0 for a box that holds a trading key."
+  description = "CIDRs allowed to reach port 22, the only inbound rule. The operator's laptop has no fixed address, so the default is the whole internet; sshd is key-only and CrowdSec bans brute-forcers at the host firewall (ansible role crowdsec). Narrow it to /32s if you ever get a fixed address."
   type        = list(string)
+  default     = ["0.0.0.0/0"]
 
   validation {
-    condition     = length(var.ssh_allowed_cidrs) > 0 && !contains(var.ssh_allowed_cidrs, "0.0.0.0/0")
-    error_message = "Give at least one CIDR, and not 0.0.0.0/0."
+    condition     = length(var.ssh_allowed_cidrs) > 0
+    error_message = "Give at least one CIDR."
   }
 }
 

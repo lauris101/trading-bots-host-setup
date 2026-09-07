@@ -5,7 +5,7 @@ The AWS trading host, as code. Two layers, two tools, run from your laptop:
 | layer | tool | what it makes |
 |---|---|---|
 | AWS resources | **terraform** (`terraform/`) | a VPC and public subnet in Tokyo, a `c7g.2xlarge` Graviton instance on Debian 13 arm64, an 80 GB encrypted gp3 root volume, one network interface carrying 3 private addresses, 3 elastic IPs bound to them, a security group that admits SSH from your addresses and nothing else |
-| the OS | **ansible** (`ansible/`) | packages, UTC + Amazon time sync, sshd hardening, the `trading-bot` account with the SSH key you choose (sudo, docker group), Docker Engine + compose, a unit that puts the secondary IPs on the interface, kernel core isolation and network sysctls, `/data` and `/logs` roots |
+| the OS | **ansible** (`ansible/`) | packages, UTC + Amazon time sync, sshd hardening, the `trading-bot` account with the SSH key you choose (sudo, docker group), Docker Engine + compose, CrowdSec with the nftables bouncer, a unit that puts the secondary IPs on the interface, kernel core isolation and network sysctls, `/data` and `/logs` roots |
 
 Nothing here knows about the trading key, the database, or Cloudflare.
 Those come afterwards, from the `trading-bots` repository, as the
@@ -20,7 +20,7 @@ laptop                                     AWS (ap-northeast-1)
                                              c7g.2xlarge Debian 13, 80 GB root, 3 EIPs
 2. just inventory            <-- outputs --  first EIP + instance id -> ansible/inventory/hosts.yml
 3. just provision            --ansible---->  ssh admin@EIP: base, sshd, trading-bot user,
-   (reboots once, for isolcpus)              docker, secondary IPs, hotpath
+   (reboots once, for isolcpus)              docker, crowdsec, secondary IPs, hotpath
 4. ssh trading-bot@EIP                       clone trading-bots, bootstrap.sh, deploy.sh prod vX.Y.Z
 ```
 
@@ -113,11 +113,11 @@ just apply       # creates them (a few minutes), then writes the inventory
 just ips         # elastic IP -> private address
 ```
 
-`terraform.tfvars` holds the two things that are yours: the SSH allow-list
-(`ssh_allowed_cidrs`, one /32 per address you operate from; `0.0.0.0/0` is
-refused) and the admin public key. Everything else has a default in
-`variables.tf`. State is local (`terraform/*.tfstate`, gitignored): back it
-up with your secrets.
+`terraform.tfvars` holds what is yours: the SSH public key, the AWS profile,
+and, if you ever have a fixed address, an SSH allow-list
+(`ssh_allowed_cidrs`; the default is the whole internet, see the firewall
+note below). Everything else has a default in `variables.tf`. State is
+local (`terraform/*.tfstate`, gitignored): back it up with your secrets.
 
 What the plan contains and why:
 
@@ -136,12 +136,16 @@ What the plan contains and why:
   AZ, change `availability_zone` and `just apply` + `just provision`: the
   subnet, ENI and instance are replaced, the **elastic IPs are kept**
   (they are region resources), so nothing outside changes.
-- **Security group = the firewall.** Inbound: TCP 22 from the allow-list.
-  Outbound: everything (venue websockets, the Cloudflare tunnel, the
-  database over the tunnel, apt). It is enforced at the interface, so
-  nothing on the host can open a port to the internet by mistake. No host
-  firewall is layered on top: docker rewrites iptables at every start, and a
-  second layer that fights it is a source of outages, not safety.
+- **Security group = the outer firewall.** Inbound: TCP 22 only. Outbound:
+  everything (venue websockets, the Cloudflare tunnel, the database over
+  the tunnel, apt). It is enforced at the interface, so nothing on the host
+  can open a port to the internet by mistake. The laptop has no fixed
+  address, so 22 is open to the internet by default; what makes that
+  tolerable is sshd accepting keys only (no password ever reaches a check)
+  plus **CrowdSec** on the host (below), which drops brute-forcers and the
+  community blocklist at nftables. No general host firewall beyond the
+  bouncer's own table: docker rewrites iptables at every start, and a
+  second rule set that fights it is a source of outages, not safety.
 - **One ENI, N private addresses, N elastic IPs.** The instance type allows
   15 addresses per interface; `elastic_ip_count` (default 3) creates that
   many private addresses and elastic IPs and binds them one-to-one. The bot
@@ -205,11 +209,51 @@ Roles, in order:
 | `sshd` | keys only, no root, `AllowUsers admin trading-bot`, short grace time; disables any image drop-in that still allows passwords |
 | `trading_bot_user` | the account, its one authorized key (exclusive), sudoers entry, `/data/data/trading-bots` and `/logs/logs/trading-bots` owned by it, an owner-only `~/.config/hl` for the venue key you place by hand |
 | `docker` | Docker Engine + buildx + compose plugin from download.docker.com (arm64), `live-restore`, `trading-bot` in the docker group |
+| `crowdsec` | CrowdSec security engine (upstream repo, 1.8) reading sshd from the journal with the `linux` and `sshd` collections, the nftables firewall bouncer (DROP), a whitelist for `crowdsec_whitelist_cidrs`, optional console enrollment. See "CrowdSec" below |
 | `secondary_ips` | `aws-secondary-ips` script + systemd service and 1-minute timer: reads the ENI's addresses from the metadata and adds the missing ones as `/32`s. Without this the kernel cannot send from the second and third elastic IP |
 | `hotpath` | `isolcpus nohz_full rcu_nocbs` for the bot's cores via a grub drop-in (reboot only when the line changed), and sysctls: 16 MB socket buffers, no slow-start after idle, TCP fast open, swappiness 1 |
 
 The play ends by printing the addresses the interface carries: the primary
 private address plus one `/32` per extra elastic IP.
+
+### CrowdSec, and living with port 22 open
+
+CrowdSec reads sshd's journal, scores each source against the `sshd`
+scenarios (failed logins in a burst, user enumeration, slow brute force),
+and asks the bouncer to drop the source for four hours by default, longer
+on repeat. It also subscribes to the community blocklist, so addresses
+caught attacking other CrowdSec hosts are dropped here before their first
+packet gets an answer. sshd itself only accepts keys, so a bot trying
+passwords never reaches a credential check; what CrowdSec removes is the
+noise and the slow drip of retries against `MaxStartups`.
+
+Your own laptop cannot be banned for connecting with the right key: a
+successful login is not an event. Typing the wrong key a few times in a
+row is (the sshd scenario fires at several failures within a minute), and
+then the fix is from the dev box (whitelisted) or the AWS console's serial
+console:
+
+```bash
+sudo cscli decisions list                       # who is banned, why, until when
+sudo cscli decisions delete --ip 203.0.113.7    # unban
+sudo cscli alerts list                          # what fired
+sudo cscli metrics                              # lines read, scenarios hit, bouncer pulls
+sudo nft list table ip crowdsec                 # the live drop set
+```
+
+Choices made in the role: DROP rather than REJECT (a scanner learns
+nothing), IPv6 off (the VPC has none), packages from CrowdSec's own
+repository at its `bookworm` suite (no `trixie` suite exists yet; the
+binaries are static and run on trixie; Debian's own `crowdsec` package is
+1.4 from 2023 and cannot load current hub collections). Set
+`crowdsec_enroll_key` in `vars.yml` if you want the alerts in the CrowdSec
+console; nothing depends on it.
+
+**If you ever want zero inbound ports**, the next step is SSH through the
+Cloudflare tunnel the trading-bots stack already runs (`cloudflared access
+ssh` on the laptop, an Access policy on the user, `ssh_allowed_cidrs = []`
+would then need a small change to allow an empty list). Not done here: the
+first provisioning of a fresh host needs SSH before the tunnel exists.
 
 ### 4. Hand-over to trading-bots
 
@@ -294,9 +338,11 @@ again later; they then cost USD 11 a month while idle.
 
 Taken, easy to change:
 
-- SSH allow-list example is the dev box's two addresses; nothing else is
-  reachable from the internet. The Cloudflare tunnel (outbound) is how the
-  UI and API are reached; that is configured in trading-bots, not here.
+- Port 22 open to the internet (no fixed address on the laptop), keys only,
+  CrowdSec with the nftables bouncer on the host; the dev box's two
+  addresses are whitelisted from bans. Nothing else is reachable from the
+  internet. The Cloudflare tunnel (outbound) is how the UI and API are
+  reached; that is configured in trading-bots, not here.
 - One SSH key for `admin` and `trading-bot`.
 - `trading-bot` has passwordless sudo and is in the docker group. The AMI's
   `admin` user is kept for Ansible; both are the only SSH users.

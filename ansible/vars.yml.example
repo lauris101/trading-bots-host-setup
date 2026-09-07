@@ -15,6 +15,20 @@ sshd_allow_users:
   - admin
   - "{{ trading_bot_user }}"
 
+# CrowdSec (port 22 is open to the internet). Addresses never to ban: the
+# dev box, any fixed address you trust. The laptop has none, so it relies on
+# keys-only sshd not tripping the scenarios (a wrong key is not a ban; a
+# burst of failed logins is).
+crowdsec_whitelist_cidrs:
+  - "78.47.39.128/32"
+  - "167.233.189.172/32"
+# Optional: an enrollment key from app.crowdsec.net to see alerts in the
+# console. Empty = not enrolled (the community blocklist works regardless).
+crowdsec_enroll_key: ""
+# CrowdSec's repo has no trixie suite yet; its bookworm packages are static
+# binaries and run on trixie. Change when trixie appears.
+crowdsec_repo_suite: bookworm
+
 # Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), for the bot's
 # spinning threads. Must match BOT_CPUSET in trading-bots/.env. c7g.2xlarge
 # has 8 cores with no SMT: 0-1 for the OS and the other services, 2-5 for
