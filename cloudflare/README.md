@@ -94,7 +94,7 @@ know, and the Access login page before either.
 
 ### 3. Use it
 
-- Browser: `https://app.lz-co.xyz`, log in once a day.
+- Browser: `https://app.lz-co.xyz`; login lasts `session_duration`.
 - Database from the laptop: `just tcp db 15432`, then
   `psql -h 127.0.0.1 -p 15432 -U trading-bots trading_bots` (the tunnel
   client logs you in through the browser the first time). Same for `ch`
@@ -112,6 +112,5 @@ know, and the Access login page before either.
   session ends at the next check.
 - **Rotate a tunnel:** `terraform taint 'random_bytes.tunnel_secret["db"]'`,
   apply, give the host the new token, restart cloudflared there.
-- **Provider version.** This is the Cloudflare provider v5 (the current
-  major): resource names carry the `zero_trust_` prefix and nested blocks
-  are attributes. Do not mix in v4 examples from the web.
+- **Provider version.** Cloudflare provider v5: resource names carry the
+  `zero_trust_` prefix, nested blocks are attributes.

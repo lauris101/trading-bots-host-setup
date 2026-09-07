@@ -1,10 +1,9 @@
 # db-host
 
-The database host, as code: a rented VPS (any provider with a Debian 12 or
-13 image) that you are handed as `root` with a password, turned into a
-keys-only box with the `trading-bot` account, Docker, CrowdSec and a
-swapfile, ready for the `trading-bots-db` stack. Ansible only; there is no
-cloud API to drive here.
+The database host, as code: a rented VPS (Debian 12 or 13) delivered as
+`root` with a password, configured as a keys-only host with the
+`trading-bot` account, Docker, CrowdSec and a swapfile, for the
+`trading-bots-db` stack. Ansible only.
 
 ## The process
 
@@ -21,9 +20,8 @@ laptop                                   the VPS
 
 ### 0. Tools
 
-Same as the trading host: `just tools` here installs Ansible and the two
-collections (Homebrew on a Mac). The SSH key is the one you made for the
-trading host; there is no reason for a second.
+`just tools` installs Ansible and the two collections (Homebrew on macOS,
+apt and pipx on Debian). SSH key: the same key as the trading host.
 
 ### 1. Bootstrap
 
@@ -33,17 +31,14 @@ cp vars.yml.example vars.yml             # your key, whitelist, swap size
 just bootstrap                           # SSH password: the one the provider gave root
 ```
 
-The play runs as root exactly once. Order matters and is fixed in
-`playbook.yml`: the `trading_bot_user` role installs your key **before**
-the `sshd` role turns off passwords and removes root from `AllowUsers`.
-Should the play fail between the two, root still works: fix and re-run.
-When it finishes, `just ping` proves the key login as `trading-bot`; only
-then throw the root password away.
+The play runs as root once. Role order in `playbook.yml`: `trading_bot_user`
+installs the key before `sshd` disables passwords and removes root from
+`AllowUsers`. If the play fails between the two, root still logs in; re-run.
+Afterwards `just ping` verifies the key login as `trading-bot`; then discard
+the root password.
 
-If the provider's image runs sshd with a `PermitRootLogin yes` drop-in of
-its own, the `sshd` role comments it out (it disables any drop-in that
-still allows passwords) and reloads; root is then key-only and not in
-`AllowUsers`, so effectively closed.
+Provider drop-ins that allow passwords are commented out by the `sshd`
+role; root is not in `AllowUsers`.
 
 ### 2. Provision
 
@@ -62,13 +57,12 @@ Roles, in order:
 | `crowdsec` | CrowdSec + nftables bouncer for the open port 22 (see the trading-host README for how it behaves and the `cscli` commands) |
 | `swapfile` | a 2 GB swapfile (`swapfile_gb`), swappiness 10: a margin against the OOM killer on a 4 GB box, not memory |
 
-The play ends by listing what listens beyond loopback: until the stack
-runs, that is sshd alone. The stack itself binds postgres and ClickHouse to
-`POSTGRES_BIND`/`CLICKHOUSE_BIND` (loopback or the docker bridge, never
-`0.0.0.0`), and everything reaches them through the Cloudflare tunnel, so
-the provider firewall, if there is one, can be "22 only" too. There is no
-host firewall in the play (docker and a second rule set fight), which is
-why the binds matter: check `ss -ltn` after the first deploy.
+The play ends by listing what listens beyond loopback; before the stack
+runs, that is sshd. The stack binds postgres and ClickHouse to
+`POSTGRES_BIND`/`CLICKHOUSE_BIND` (loopback or the docker bridge) and they
+are reached through the Cloudflare tunnel. A provider firewall, if any, can
+admit port 22 only. The play installs no host firewall; check `ss -ltn`
+after the first deploy.
 
 ### 3. Hand-over to trading-bots-db
 
@@ -89,7 +83,6 @@ The tunnel token comes from the `cloudflare` part of this repository
 
 ## Sizing
 
-The stack runs on 2 vCPU / 4 GB with the swapfile as margin; ClickHouse is
-the hungry one and is capped in the compose file. Disk is the constraint to
-watch: postgres data, ClickHouse quotes (1 day TTL), 7 days of logs, wal-g
-sends backups off-box to R2. 40 GB is comfortable to start.
+2 vCPU / 4 GB with the swapfile; ClickHouse is capped in the compose file.
+Disk holds postgres data, ClickHouse quotes (1 day TTL) and 7 days of logs;
+wal-g backups go to R2. 40 GB to start.

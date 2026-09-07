@@ -11,10 +11,9 @@ independent parts. Each has its own README, `justfile` and state; run
 | [`cloudflare/`](cloudflare/README.md) | terraform | one tunnel per host, the hostnames under `lz-co.xyz` as CNAMEs to the tunnels, a Zero Trust Access application per hostname (people by email, machines by source address) |
 | `ansible/roles/` | shared | the roles both playbooks use: `base`, `sshd`, `trading_bot_user`, `docker`, `crowdsec`, `secondary_ips`, `hotpath`, `swapfile` |
 
-What runs ON the hosts (postgres, ClickHouse, the bot, control, the
-scraper, fluentd) is not here: those are the `trading-bots` and
-`trading-bots-db` repositories, deployed as the `trading-bot` user each
-part creates. This repository ends where `git clone` of those begins.
+The services (postgres, ClickHouse, the bot, control, the scraper,
+fluentd) are deployed from the `trading-bots` and `trading-bots-db`
+repositories, as the `trading-bot` user each part creates.
 
 ## Order
 
@@ -47,14 +46,12 @@ token for Cloudflare (`cloudflare/README.md`); both live in your shell or
 `~/.aws`, never in this repository. All `terraform.tfvars`, `vars.yml`,
 inventories and state files are gitignored.
 
-## Security model, in one paragraph
+## Security model
 
-Each host has exactly one inbound port, SSH, open to the internet because
-the laptop has no fixed address; sshd takes keys only for named users, and
-CrowdSec with the nftables bouncer drops brute-forcers and the community
-blocklist. Everything else, the UI, the API, the databases, metrics, is
-reached through Cloudflare tunnels that the hosts dial out, behind Access:
-a named person logs in with a one-time PIN, a listed machine address
-passes without a login, everyone else meets a login page and never a
-service. The trading key is placed on the trading host by hand and appears
-in no repository.
+Each host has one inbound port, SSH, open to the internet (the operator has
+no fixed address); sshd accepts keys only for named users; CrowdSec with the
+nftables bouncer drops brute-forcers and the community blocklist. The UI,
+API, databases and metrics are reached through Cloudflare tunnels behind
+Access: listed people log in with a one-time PIN, listed machine addresses
+pass without a login. The trading key is placed on the trading host by hand
+and is in no repository.
