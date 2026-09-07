@@ -63,6 +63,10 @@ ssh:
 ssh-bot:
     ssh trading-bot@$({{tf}} output -raw ssh | sed 's/^ssh admin@//')
 
+# TCP connect latency from the host to every Hyperliquid API address (compare AZs with this)
+latency samples="20":
+    ssh admin@$({{tf}} output -raw ssh | sed 's/^ssh admin@//') 'bash -s' -- {{samples}} < scripts/hl-latency.sh
+
 # --- teardown -----------------------------------------------------------------
 
 # Destroy everything (refused while termination_protection = true; flip it in terraform.tfvars and apply first)

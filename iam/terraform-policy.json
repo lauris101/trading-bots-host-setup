@@ -1,0 +1,25 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Ec2AndVpcInTokyoOnly",
+      "Effect": "Allow",
+      "Action": ["ec2:*"],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "ap-northeast-1" } }
+    },
+    {
+      "Sid": "ReadOnlyEverywhereForPlans",
+      "Effect": "Allow",
+      "Action": ["ec2:Describe*", "sts:GetCallerIdentity"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "NeverTerminateWithoutLiftingProtectionFirst",
+      "Effect": "Deny",
+      "Action": ["ec2:TerminateInstances"],
+      "Resource": "*",
+      "Condition": { "StringEquals": { "ec2:ResourceTag/managed_by": "terraform" }, "Bool": { "aws:MultiFactorAuthPresent": "false" } }
+    }
+  ]
+}

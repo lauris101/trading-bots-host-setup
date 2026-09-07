@@ -55,9 +55,14 @@ variable "ssh_allowed_cidrs" {
   }
 }
 
-variable "admin_public_key" {
-  description = "OpenSSH public key for the AMI's built-in 'admin' user (what Ansible logs in as). One line, 'ssh-ed25519 AAAA... comment'."
+variable "ssh_public_key" {
+  description = "The one OpenSSH public key for the box: the AMI's built-in 'admin' user gets it at launch (Ansible logs in with it), and Ansible gives it to the trading-bot account. One line, 'ssh-ed25519 AAAA... comment'."
   type        = string
+
+  validation {
+    condition     = can(regex("^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp[0-9]+|sk-[a-z0-9-]+@openssh.com) [A-Za-z0-9+/=]+", var.ssh_public_key))
+    error_message = "Not an OpenSSH public key line."
+  }
 }
 
 variable "vpc_cidr" {

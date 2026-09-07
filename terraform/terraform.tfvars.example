@@ -7,13 +7,17 @@ ssh_allowed_cidrs = [
   "167.233.189.172/32",
 ]
 
-# The key Ansible logs in with, as the AMI's `admin` user.
-admin_public_key = "ssh-ed25519 AAAA... you@laptop"
+# The one SSH key: the AMI's `admin` user (Ansible's login) and, through
+# Ansible, the trading-bot account.
+ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
+
+# The IAM user made for this repo (README "Credentials"), a profile in
+# ~/.aws/credentials.
+aws_profile = "trading"
 
 # Defaults, shown so they are easy to change:
 # region                 = "ap-northeast-1"
 # availability_zone      = "ap-northeast-1a"
-# aws_profile            = "trading"        # a profile in ~/.aws/credentials
 # name                   = "trading-host"
 # instance_type          = "c7g.2xlarge"
 # root_volume_gb         = 80

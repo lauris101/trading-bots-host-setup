@@ -29,12 +29,42 @@ laptop                                     AWS (ap-northeast-1)
 - `terraform` >= 1.6 (or OpenTofu: set `tf := "tofu -chdir=terraform"` in
   the justfile), `ansible-core` >= 2.15 (`just tools` installs it with pipx
   and pulls the two collections), `just`.
-- AWS credentials for an IAM user or role that may manage EC2 and VPC in
-  the account: either `AWS_PROFILE`/`~/.aws/credentials` (set `aws_profile`
-  in tfvars) or `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` in the
-  environment. Nothing is stored in this repository.
-- Two SSH public keys: one for the AMI's `admin` user (what Ansible logs in
-  as) and one for `trading-bot`. They may be the same key.
+- AWS credentials: see "Credentials" just below. Nothing is stored in this
+  repository.
+- One SSH public key. Terraform gives it to the AMI's `admin` user at
+  launch (Ansible logs in with it) and carries it into the inventory;
+  Ansible gives the same key to `trading-bot`. A different key for
+  `trading-bot` is one line in `vars.yml` if you ever want it.
+
+#### Credentials
+
+The simplest arrangement that is still narrow: a dedicated IAM user for
+this repository, with an access key in a named profile, and a policy that
+allows EC2 and VPC only in Tokyo.
+
+1. IAM console, Users, Create user `terraform-trading`. No console access.
+2. Permissions: Create inline policy, JSON tab, paste
+   `iam/terraform-policy.json`. It allows every `ec2:` action in
+   `ap-northeast-1` only, read-only describes elsewhere (for plans), and
+   denies `TerminateInstances` on terraform-managed resources unless the
+   session has MFA. Terraform therefore cannot destroy the host by
+   accident; a deliberate destroy is done from a console session with MFA
+   or by removing that statement.
+3. Security credentials, Create access key, "Application running outside
+   AWS". Put it in `~/.aws/credentials`:
+
+   ```ini
+   [trading]
+   aws_access_key_id     = AKIA...
+   aws_secret_access_key = ...
+   region                = ap-northeast-1
+   ```
+
+4. `aws_profile = "trading"` in `terraform.tfvars` (the example has it).
+
+Rotate the key from the same page when needed; nothing else changes. Not
+chosen: IAM Identity Center (SSO) and `aws-vault`, correct for a team,
+more moving parts than one operator needs; the root account, never.
 
 ### 1. AWS resources
 
@@ -57,6 +87,18 @@ What the plan contains and why:
 - **Own VPC** (`10.20.0.0/16`, one public subnet in `ap-northeast-1a`)
   rather than the default VPC: nothing else shares the address space or the
   route table, and the box's network is fully described here.
+- **Availability zone.** Hyperliquid's validators run in AWS Tokyo across
+  several availability zones, and its API is fronted by CloudFront, so
+  there is no single "Hyperliquid AZ" to sit next to; the region is what
+  matters (Tokyo to the validators is 2-3 ms, Europe 200+ ms), and the
+  order round trip is dominated by the venue's own processing (about 0.9 s
+  median measured from AWS Tokyo, of which about 5 ms is network). AZ
+  names are also shuffled per account, so a name someone else reports
+  means nothing here. The way to choose is to measure: `just latency`
+  runs TCP connects from the host to every API address. To try another
+  AZ, change `availability_zone` and `just apply` + `just provision`: the
+  subnet, ENI and instance are replaced, the **elastic IPs are kept**
+  (they are region resources), so nothing outside changes.
 - **Security group = the firewall.** Inbound: TCP 22 from the allow-list.
   Outbound: everything (venue websockets, the Cloudflare tunnel, the
   database over the tunnel, apt). It is enforced at the interface, so
@@ -69,6 +111,22 @@ What the plan contains and why:
   discovers them through the instance metadata (`network.ip_provider:
   auto`) and gives each socket its own source address, so each elastic IP
   is a separate venue rate-limit budget.
+
+  This is NAT, and it is the only way a VPC does public IPv4: the
+  interface never carries a public address (unlike Hetzner, where the
+  additional IP sits directly on `eth0`); the internet gateway rewrites
+  each private address to its elastic IP, one-to-one and stateless, so
+  there is no shared NAT gateway, no port pool to exhaust and no
+  connection table to fill. Every EC2 instance with a public address works
+  this way, so the cost is already in every latency number ever measured
+  from AWS. For the bot it is the same "discover a pool, bind each socket
+  to one address" as on Hetzner, done by the `aws` provider: it reads the
+  private-to-public mapping from the metadata (`ipv4-associations`), binds
+  the private address, and reports both, so `/status.network` shows the
+  elastic IP the venue sees next to the address the socket bound. The
+  `secondary_ips` role is the one thing the host must do for this: put the
+  extra private addresses on the interface, or the kernel refuses to send
+  from them.
 - **IMDSv2 only**, hop limit 2, so a process in a docker bridge network
   can still read the metadata.
 - **Root volume** 80 GB gp3, encrypted, deleted with the instance. Debian's
@@ -93,8 +151,9 @@ just check       # dry run with diffs
 just provision   # the real thing; reboots once on a fresh host
 ```
 
-`vars.yml` is where you **specify the SSH key for `trading-bot`**
-(`trading_bot_public_key`: a key line or a path to a `.pub` file), whether it
+`vars.yml` is where the **SSH key for `trading-bot`** is set
+(`trading_bot_public_key`: by default the key from `terraform.tfvars`,
+otherwise a key line or a path to a `.pub` file), whether it
 gets passwordless sudo (`trading_bot_sudo`, default true: one operator, one
 box, and `deploy.sh` needs apt), and which cores the kernel keeps off
 (`hotpath_isolated_cpus`, default `2-5`; it must equal `BOT_CPUSET` in the
@@ -165,6 +224,7 @@ Taken, easy to change:
 - SSH allow-list example is the dev box's two addresses; nothing else is
   reachable from the internet. The Cloudflare tunnel (outbound) is how the
   UI and API are reached; that is configured in trading-bots, not here.
+- One SSH key for `admin` and `trading-bot`.
 - `trading-bot` has passwordless sudo and is in the docker group. The AMI's
   `admin` user is kept for Ansible; both are the only SSH users.
 - No host firewall on top of the security group (see above).
@@ -172,20 +232,17 @@ Taken, easy to change:
   fluentd; `6-7` spare. c7g has no SMT, so no sibling to worry about.
 - Local terraform state; termination protection on.
 
+- No root volume snapshots: the stack's state is in the database host and
+  in git, so a rebuild is `apply + provision + deploy`.
+- Availability zone `ap-northeast-1a` to start; measure with `just latency`
+  and move if another AZ is clearly better (the elastic IPs stay).
+- Credentials: a dedicated IAM user with the Tokyo-only policy in `iam/`.
+
 Open, for you to decide:
 
-1. **Availability zone.** `ap-northeast-1a` by default. If you know which
-   AZ the venues' Tokyo presence sits in, set `availability_zone`; it
-   cannot change after launch without a rebuild.
-2. **Root volume snapshots.** Nothing backs up the root disk. The stack's
-   state is in the database host and in git, so a rebuild is
-   `apply + provision + deploy`; if you want a daily EBS snapshot anyway,
-   say so and a Data Lifecycle Manager policy goes into `main.tf`.
-3. **Static private addresses.** The ENI's secondary addresses are picked by
+1. **Static private addresses.** The ENI's secondary addresses are picked by
    AWS from the subnet. If you want them fixed (for allow-lists on the
    database side, use the elastic IPs, which are stable regardless), they
    can be listed explicitly.
-4. **A second interface** instead of secondary addresses on one: not needed
-   for rate-limit budgets, only if you want separate queues per IP.
-5. **Reserved capacity / savings plan** once the box has run for a few
+2. **Reserved capacity / savings plan** once the box has run for a few
    weeks on demand.

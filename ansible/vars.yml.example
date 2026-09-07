@@ -1,9 +1,11 @@
 # Copy to vars.yml (gitignored) and fill in. Loaded by site.yml.
 
-# The account the trading stack runs under. Its SSH key is yours to pick:
-# a public key line, or a path to a .pub file (~ is expanded).
+# The account the trading stack runs under. Its SSH key: by default the same
+# key terraform gave the admin user (ssh_public_key in terraform.tfvars,
+# carried into the inventory). To use a different one, put a public key
+# line or a path to a .pub file here instead.
 trading_bot_user: trading-bot
-trading_bot_public_key: "~/.ssh/id_ed25519_trading_bot.pub"
+trading_bot_public_key: "{{ ssh_public_key }}"
 # Passwordless sudo for that account. Needed for deploy.sh's apt installs
 # and for the log/data directories; one operator, one box, so on by default.
 trading_bot_sudo: true

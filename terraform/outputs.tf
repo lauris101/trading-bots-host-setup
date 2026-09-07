@@ -33,6 +33,9 @@ output "ansible_inventory" {
           ansible_user: admin
           ansible_python_interpreter: /usr/bin/python3
           instance_id: ${aws_instance.host.id}
+          availability_zone: ${var.availability_zone}
           elastic_ips: ${jsonencode([for i in range(var.elastic_ip_count) : aws_eip.host[i].public_ip])}
+          # the same key goes to the trading-bot account (ansible vars.yml)
+          ssh_public_key: ${jsonencode(var.ssh_public_key)}
   EOT
 }

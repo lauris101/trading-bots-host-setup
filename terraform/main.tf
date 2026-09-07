@@ -81,7 +81,7 @@ resource "aws_vpc_security_group_egress_rule" "all" {
 
 resource "aws_key_pair" "admin" {
   key_name   = "${var.name}-admin"
-  public_key = var.admin_public_key
+  public_key = var.ssh_public_key
 }
 
 # Latest official Debian 13 (trixie) arm64 image. Debian's cloud team
