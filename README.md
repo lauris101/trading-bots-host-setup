@@ -51,6 +51,53 @@ token for Cloudflare (`cloudflare/README.md`); both live in your shell or
 `~/.aws`, never in this repository. All `terraform.tfvars`, `vars.yml`,
 inventories and state files are gitignored.
 
+## Terraform state: in R2, and how to restore
+
+Both terraform parts keep their state in one private Cloudflare R2 bucket
+through the S3 backend, at `trading-host/terraform.tfstate` and
+`cloudflare/terraform.tfstate`. No state file is on the laptop. The state
+holds secrets (the tunnel tokens), so the bucket stays private and the
+token that reads it is scoped to the bucket.
+
+Setup, once:
+
+1. R2, Create bucket `trading-bots-tfstate` (any region; leave it private).
+2. R2, Manage API tokens, Create: Object Read & Write, this bucket only.
+   Note the access key id, secret access key and the account's S3 endpoint.
+3. `cp backend.hcl.example backend.hcl` at the repo root and fill in the
+   bucket, endpoint and the two keys. Store the same three values in your
+   password manager: they are the restore.
+4. `just init` in each part connects it to the bucket.
+
+Restore on a new laptop, or after the checkout is lost:
+
+```bash
+git clone git@github.com:lauris101/trading-bots-host-setup.git && cd trading-bots-host-setup
+# backend.hcl from the password manager; terraform.tfvars / vars.yml likewise (or re-create them)
+cd trading-host && just tools && just init && just plan     # plan shows "No changes"
+just inventory                                              # inventory back from the state
+cd ../cloudflare && just init && just plan && just app-token
+```
+
+`just init` downloads the state from the bucket; everything Terraform
+manages is known again, including the tunnel tokens and the elastic IPs.
+The two `terraform.tfvars` files are not state: they are re-created from the
+examples with the same values (SSH key, account and zone ids, emails,
+bypass list). A plan that shows changes after a restore means a tfvars
+value differs from what was applied.
+
+R2 does not version objects. `just state-backup` in a part writes a dated
+copy of its state to `~/tfstate-backups/`; run it before an operation that
+replaces resources. To go back to a copy: `terraform state push <file>`.
+
+If a state file is lost with no copy, the resources still exist and are
+re-adopted with `terraform import`, one per resource, by id (tags
+`project=trading-bots` and the tunnel names find them). The READMEs of the
+parts list the import forms.
+
+Locking: the backend runs without a lock file. One operator applies at a
+time; two concurrent applies from two machines would race.
+
 ## Security model
 
 Each host has one inbound port, SSH, open to the internet (the operator has

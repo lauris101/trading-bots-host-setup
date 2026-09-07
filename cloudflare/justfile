@@ -4,9 +4,19 @@
 
 tf := "terraform -chdir=."
 
-# Download the providers, once
+# Download the providers and connect to the state bucket (backend.hcl at the repo root)
 init:
-    {{tf}} init
+    {{tf}} init -backend-config="$(pwd)/../backend.hcl"
+
+# Move an existing LOCAL state into the bucket (one-time, if apply ran before the backend existed)
+init-migrate:
+    {{tf}} init -backend-config="$(pwd)/../backend.hcl" -migrate-state
+
+# Save a copy of the current state to ~/tfstate-backups (R2 keeps no versions)
+state-backup:
+    mkdir -p ~/tfstate-backups
+    {{tf}} state pull > ~/tfstate-backups/$(basename $(pwd))-$(date -u +%Y%m%dT%H%M%SZ).tfstate
+    ls -la ~/tfstate-backups | tail -3
 
 # fmt, validate, plan
 plan:

@@ -1,0 +1,7 @@
+# Copy to backend.hcl (gitignored). Shared by both terraform parts: where
+# their state files live (a private Cloudflare R2 bucket) and how to reach it.
+# The R2 API token needs Object Read & Write on this bucket only.
+bucket     = "trading-bots-tfstate"
+endpoints  = { s3 = "https://<account_id>.r2.cloudflarestorage.com" }
+access_key = "<r2 access key id>"
+secret_key = "<r2 secret access key>"

@@ -97,8 +97,8 @@ just ips         # elastic IP -> private address
 
 `terraform.tfvars`: `ssh_public_key`, `aws_profile`, and optionally
 `ssh_allowed_cidrs` (default: the whole internet). Other settings have
-defaults in `variables.tf`. State is local (`terraform/*.tfstate`,
-gitignored); back it up.
+defaults in `variables.tf`. State is in the R2 bucket (repository README,
+"Terraform state"); `just init` needs `../backend.hcl`.
 
 What is created:
 
@@ -221,8 +221,9 @@ The bot's status page lists the three addresses under `network` (provider
 - **Rebuild on a new Debian image:** `terraform -chdir=terraform apply
   -replace=aws_instance.host`, then `just provision`. The elastic IPs stay
   (they belong to the ENI, which is not replaced).
-- **Lost state file:** `terraform import` each resource by id; the tag
-  `project=trading-bots` finds them in the console.
+- **Lost state:** restore from the bucket or a `just state-backup` copy
+  (repository README); with neither, `terraform import` each resource by
+  id; the tag `project=trading-bots` finds them in the console.
 
 ## Tear down
 
@@ -259,6 +260,6 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
 - Cores `2-5` isolated for the bot, `0-1` for the OS and the other services,
   `6-7` spare (c7g has no SMT).
 - No root volume snapshots; a rebuild is apply, provision, deploy.
-- Local terraform state; termination protection on.
+- Terraform state in R2; termination protection on.
 - The ENI's secondary private addresses are chosen by AWS from the subnet.
   Allow-lists use the elastic IPs, which are stable.

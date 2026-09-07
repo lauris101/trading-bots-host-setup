@@ -104,7 +104,7 @@ only what this configuration created.
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars   # ids, domain, your email
-just init
+just init                                      # needs ../backend.hcl (repository README, "Terraform state")
 just plan          # 2 tunnels, 2 configs, 7 CNAMEs, 2 policies, 2 apps
 just apply
 just hostnames

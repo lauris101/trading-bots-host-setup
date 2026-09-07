@@ -8,6 +8,9 @@
 **/*.auto.tfvars
 **/crash.log
 
+# the terraform backend (R2 bucket + credentials)
+backend.hcl
+
 # ansible: generated or real inventories and variables, retry files
 trading-host/inventory/hosts.yml
 db-host/inventory.yml

@@ -12,8 +12,21 @@ terraform {
     }
   }
 
-  # Local state, like the trading host. It holds the tunnel secrets: back
-  # it up with your secrets, never commit it (gitignored).
+
+  # State lives in a Cloudflare R2 bucket through the S3 backend. Bucket,
+  # endpoint and R2 credentials come from ../backend.hcl (gitignored):
+  #   terraform init -backend-config=<repo>/backend.hcl   (just init)
+  backend "s3" {
+    key    = "cloudflare/terraform.tfstate"
+    region = "auto"
+    # R2 is not AWS: no STS, no region, no checksum trailer, path-style URLs.
+    skip_credentials_validation = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    skip_metadata_api_check     = true
+    skip_s3_checksum            = true
+    use_path_style              = true
+  }
 }
 
 # Credentials: CLOUDFLARE_API_TOKEN in the environment (README "API token").
