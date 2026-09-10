@@ -1,6 +1,12 @@
 # Keep the kernel off the bot's cores and tune the network stack. The
 # kernel command line change needs a reboot; this role reboots only when it
 # actually changed the line (a fresh host, or a new hotpath_isolated_cpus).
+- name: The grub drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/default/grub.d
+    state: directory
+    mode: "0755"
+
 - name: Kernel keeps off the isolated cores (isolcpus, nohz_full, rcu_nocbs)
   ansible.builtin.copy:
     dest: /etc/default/grub.d/90-trading-hotpath.cfg

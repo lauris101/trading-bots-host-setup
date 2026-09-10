@@ -38,6 +38,16 @@
       - python3
     state: present
 
+- name: Drop-in directories exist (a minimal image ships without some of them)
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/chrony/sources.d
+    - /etc/systemd/journald.conf.d
+    - /etc/apt/apt.conf.d
+
 - name: On EC2, chrony syncs from the Amazon Time Sync Service (link-local, no internet hop)
   ansible.builtin.copy:
     dest: /etc/chrony/sources.d/aws.sources
