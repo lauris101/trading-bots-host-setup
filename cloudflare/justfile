@@ -27,7 +27,7 @@ state-backup:
 
 # fmt, validate, plan
 plan:
-    {{tf}} fmt -check -recursive
+    {{tf}} fmt -recursive
     {{tf}} validate
     {{tf}} plan
 

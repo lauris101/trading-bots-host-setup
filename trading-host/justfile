@@ -46,7 +46,7 @@ state-backup:
 
 # Show what would change
 plan:
-    {{tf}} fmt -check -recursive
+    {{tf}} fmt -recursive
     {{tf}} validate
     {{tf}} plan
 
