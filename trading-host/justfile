@@ -56,6 +56,13 @@ apply:
     {{tf}} apply
     just inventory
 
+# Replace the instance (a new availability_zone, a new AMI): lift termination protection first, then apply
+rebuild:
+    just state-backup
+    {{tf}} apply -target=aws_instance.host -var termination_protection=false
+    {{tf}} apply
+    just inventory
+
 # Write inventory/hosts.yml from the terraform outputs
 inventory:
     mkdir -p inventory

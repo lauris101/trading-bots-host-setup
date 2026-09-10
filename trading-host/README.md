@@ -123,8 +123,10 @@ What is created:
 Availability zone: Hyperliquid runs in AWS Tokyo across several zones
 behind CloudFront; zone names are account-specific. `just latency` measures
 TCP connect times from the host to every API address. To change the zone,
-set `availability_zone`, `just apply`, `just provision`: subnet, ENI and
-instance are replaced; the elastic IPs are kept.
+set `availability_zone` in `terraform.tfvars`, then `just rebuild` and
+`just provision`: subnet, ENI and instance are replaced (the recipe lifts
+termination protection on the old instance first, since a replace starts
+with a terminate); the elastic IPs are kept.
 
 ### 2. Inventory
 
@@ -218,9 +220,8 @@ The bot's status page lists the three addresses under `network` (provider
 - **Add an elastic IP:** raise `elastic_ip_count`, `just apply`. The timer
   on the host picks the new private address up within a minute; the bot
   uses it from its next start.
-- **Rebuild on a new Debian image:** `terraform -chdir=terraform apply
-  -replace=aws_instance.host`, then `just provision`. The elastic IPs stay
-  (they belong to the ENI, which is not replaced).
+- **Rebuild on a new Debian image or in another zone:** `just rebuild`,
+  then `just provision`. The elastic IPs stay.
 - **Lost state:** restore from the bucket or a `just state-backup` copy
   (repository README); with neither, `terraform import` each resource by
   id; the tag `project=trading-bots` finds them in the console.
