@@ -1,14 +1,14 @@
 # Docker Engine + compose plugin from Docker's own repository (Debian's
 # packages lag and split compose out). The trading-bot account joins the
 # docker group so deploy.sh runs without sudo.
-- name: Docker's apt repository (arm64, this release), key fetched from docker.com
+- name: Docker's apt repository (this host's architecture and release), key fetched from docker.com
   ansible.builtin.deb822_repository:
     name: docker
     types: [deb]
     uris: https://download.docker.com/linux/debian
     suites: ["{{ ansible_facts.distribution_release }}"]
     components: [stable]
-    architectures: [arm64]
+    architectures: ["{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"]
     signed_by: https://download.docker.com/linux/debian/gpg
     state: present
 

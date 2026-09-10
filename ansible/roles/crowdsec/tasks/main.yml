@@ -22,7 +22,7 @@
     uris: https://packagecloud.io/crowdsec/crowdsec/debian
     suites: ["{{ crowdsec_repo_suite }}"]
     components: [main]
-    architectures: [arm64]
+    architectures: ["{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"]
     signed_by: https://packagecloud.io/crowdsec/crowdsec/gpgkey
     state: present
   register: crowdsec_repo
