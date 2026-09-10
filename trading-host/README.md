@@ -195,7 +195,8 @@ As `trading-bot` on the host (`just ssh-bot`):
 git clone git@github.com:lauris101/trading-bots.git && cd trading-bots
 infra/scripts/bootstrap.sh prod            # writes .env; then fill in:
 #   DATABASE_URL / CLICKHOUSE_URL           via the db host's tunnel hostnames (../cloudflare)
-#   BOT_CPUSET=2-5                          equals hotpath_isolated_cpus
+#   BOT_CPUSET=2-6                          the isolated cores plus one shared core
+#   hot_path.parse_cpus/strategy_cpus/send_cpus = [2],[3],[4]   one spinner per isolated core
 #   DATA_BASE_DIR= LOGS_BASE_DIR=           empty, as data_base_dir/logs_base_dir
 #   CLOUDFLARE_TUNNEL_TOKEN                 `just app-token` in ../cloudflare
 # place the venue key at ~/.config/hl/key (mode 0600)
@@ -260,8 +261,11 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
 - One SSH key for `admin` and `trading-bot`; `trading-bot` has passwordless
   sudo and is in the docker group; `admin` and `trading-bot` are the only
   SSH users.
-- Cores `2-5` isolated for the bot, `0-1` for the OS and the other services,
-  `6-7` spare (c7g has no SMT).
+- Cores `2-5` isolated (`isolcpus`): the kernel and every unpinned task stay
+  off them, and the scheduler does not balance between them, so the bot pins
+  one spinner per isolated core (`hot_path.*_cpus`). Cores `0`, `1`, `6`,
+  `7` are shared by everything else, the bot's non-hot threads included
+  (`BOT_CPUSET=2-6`). c7g has no SMT.
 - No root volume snapshots; a rebuild is apply, provision, deploy.
 - Terraform state in R2; termination protection on.
 - The ENI's secondary private addresses are chosen by AWS from the subnet.
