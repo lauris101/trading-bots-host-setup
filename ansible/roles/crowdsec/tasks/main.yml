@@ -33,6 +33,15 @@
     state: present
     update_cache: "{{ crowdsec_repo.changed }}"
 
+- name: CrowdSec drop-in directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - /etc/crowdsec/acquis.d
+    - /etc/crowdsec/parsers/s02-enrich
+
 - name: sshd is read from the journal (Debian 13 has no /var/log/auth.log without rsyslog)
   ansible.builtin.copy:
     dest: /etc/crowdsec/acquis.d/sshd-journal.yaml

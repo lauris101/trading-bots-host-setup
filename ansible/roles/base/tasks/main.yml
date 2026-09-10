@@ -36,6 +36,8 @@
       - ethtool
       - linux-cpupower
       - python3
+      # The deb822_repository module (docker, crowdsec roles) needs it on the host.
+      - python3-debian
     state: present
 
 - name: Drop-in directories exist (a minimal image ships without some of them)
@@ -47,6 +49,7 @@
     - /etc/chrony/sources.d
     - /etc/systemd/journald.conf.d
     - /etc/apt/apt.conf.d
+    - /etc/apt/keyrings
 
 - name: On EC2, chrony syncs from the Amazon Time Sync Service (link-local, no internet hop)
   ansible.builtin.copy:

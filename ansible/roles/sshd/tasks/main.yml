@@ -1,5 +1,11 @@
 # SSH is the only door (the security group admits nothing else), so it is a
 # narrow one: keys only, no root, named users only.
+- name: The sshd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+
 - name: sshd hardening drop-in
   ansible.builtin.copy:
     dest: /etc/ssh/sshd_config.d/10-trading-host.conf
