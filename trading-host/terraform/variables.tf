@@ -5,9 +5,9 @@ variable "region" {
 }
 
 variable "availability_zone" {
-  description = "AZ for the subnet and the instance (c7g is offered in ap-northeast-1a, 1c and 1d)."
+  description = "AZ for the subnet and the instance (c7g is offered in ap-northeast-1a, 1c and 1d; 1d measured fastest to the venue's edge, see README)."
   type        = string
-  default     = "ap-northeast-1a"
+  default     = "ap-northeast-1d"
 }
 
 variable "aws_profile" {

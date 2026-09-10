@@ -122,7 +122,9 @@ What is created:
 
 Availability zone: Hyperliquid runs in AWS Tokyo across several zones
 behind CloudFront; zone names are account-specific. `just latency` measures
-TCP connect times from the host to every API address. To change the zone,
+TCP connect times from the host to every API address (measured 2026-09-10,
+median handshake to the `api.` edge: `1d` 1.35 ms, `1a` 1.6 ms, `1c`
+slowest; the host runs in `1d`). To change the zone,
 set `availability_zone` in `terraform.tfvars`, then `just rebuild` and
 `just provision`: subnet, ENI and instance are replaced (the recipe lifts
 termination protection on the old instance first, since a replace starts
