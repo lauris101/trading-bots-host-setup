@@ -26,10 +26,14 @@ apt and pipx on Debian). SSH key: the same key as the trading host.
 ### 1. Bootstrap
 
 ```bash
-cp inventory.yml.example inventory.yml   # the VPS's address
-cp vars.yml.example vars.yml             # your key, whitelist, swap size
+cp inventory.yml.example inventory.yml   # the VPS's address and the private key file
+cp vars.yml.example vars.yml             # your public key, whitelist, swap size
 just bootstrap                           # SSH password: the one the provider gave root
 ```
+
+`ansible_ssh_private_key_file` in the inventory must be the private half of
+`trading_bot_public_key` in `vars.yml`; every run after bootstrap logs in
+with it.
 
 The play runs as root once. Role order in `playbook.yml`: `trading_bot_user`
 installs the key before `sshd` disables passwords and removes root from

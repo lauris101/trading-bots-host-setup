@@ -17,6 +17,10 @@ output "addresses" {
   value       = { for i in range(var.elastic_ip_count) : aws_eip.host[i].public_ip => local.private_ips[i] }
 }
 
+output "ssh_private_key_file" {
+  value = var.ssh_private_key_file
+}
+
 output "ssh" {
   description = "How to reach the box as the AMI's admin user (Ansible uses the same)."
   value       = "ssh admin@${aws_eip.host[0].public_ip}"
@@ -31,6 +35,7 @@ output "ansible_inventory" {
         ${var.name}:
           ansible_host: ${aws_eip.host[0].public_ip}
           ansible_user: admin
+          ansible_ssh_private_key_file: ${var.ssh_private_key_file}
           ansible_python_interpreter: /usr/bin/python3
           instance_id: ${aws_instance.host.id}
           availability_zone: ${var.availability_zone}

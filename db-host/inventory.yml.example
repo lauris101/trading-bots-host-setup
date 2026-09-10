@@ -8,4 +8,7 @@ all:
     db-host:
       ansible_host: 203.0.113.10
       ansible_user: trading-bot
+      # The private half of trading_bot_public_key (vars.yml). Without it ssh
+      # offers only its default identities and the login is refused.
+      ansible_ssh_private_key_file: ~/.ssh/id_ed25519_trading
       ansible_python_interpreter: /usr/bin/python3

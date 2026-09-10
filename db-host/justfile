@@ -37,6 +37,10 @@ tags tags:
 ping:
     ansible -i inventory.yml all -m ping
 
-# SSH in as trading-bot
+# SSH in as trading-bot, with the key from the inventory
 ssh:
-    ssh trading-bot@$(python3 -c "import yaml; print(yaml.safe_load(open('inventory.yml'))['all']['hosts']['db-host']['ansible_host'])")
+    #!/usr/bin/env bash
+    set -euo pipefail
+    host=$(python3 -c "import yaml; print(yaml.safe_load(open('inventory.yml'))['all']['hosts']['db-host']['ansible_host'])")
+    key=$(python3 -c "import yaml; print(yaml.safe_load(open('inventory.yml'))['all']['hosts']['db-host'].get('ansible_ssh_private_key_file',''))")
+    ssh ${key:+-i "$key"} trading-bot@"$host"

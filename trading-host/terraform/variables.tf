@@ -66,6 +66,12 @@ variable "ssh_public_key" {
   }
 }
 
+variable "ssh_private_key_file" {
+  description = "Path on the laptop to the private half of ssh_public_key; written into the ansible inventory so every login uses it."
+  type        = string
+  default     = "~/.ssh/id_ed25519_trading"
+}
+
 variable "vpc_cidr" {
   description = "CIDR of the dedicated VPC."
   type        = string
