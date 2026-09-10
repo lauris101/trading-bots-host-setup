@@ -55,6 +55,15 @@
         type: syslog
   notify: Restart crowdsec
 
+- name: The main acquisition file exists (the package writes one only when its wizard finds logs; the engine expects the path)
+  ansible.builtin.copy:
+    dest: /etc/crowdsec/acquis.yaml
+    mode: "0644"
+    force: false
+    content: |
+      # Managed by ansible (trading-bots-host-setup): acquisitions live in acquis.d/.
+  notify: Restart crowdsec
+
 - name: The file-based sshd acquisition the package guesses is disabled if it points at files that do not exist
   ansible.builtin.replace:
     path: /etc/crowdsec/acquis.yaml
