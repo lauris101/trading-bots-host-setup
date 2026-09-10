@@ -9,6 +9,37 @@
     regexp: '^127\.0\.1\.1\s'
     line: "127.0.1.1 {{ host_name }}"
 
+# A Mac's ssh forwards LC_* set to en_US.UTF-8; the cloud image ships only
+# C.UTF-8, so every shell prints locale warnings until the locale exists.
+- name: The locales package is present
+  ansible.builtin.apt:
+    name: locales
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: en_US.UTF-8 is generated
+  community.general.locale_gen:
+    name: en_US.UTF-8
+    state: present
+
+- name: System default locale
+  ansible.builtin.copy:
+    dest: /etc/default/locale
+    mode: "0644"
+    content: |
+      LANG=en_US.UTF-8
+      LC_ALL=en_US.UTF-8
+
+- name: cloud-init's locale warning is off
+  ansible.builtin.file:
+    path: /var/lib/cloud/instance/locale-check.skip
+    state: touch
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+  when: ansible_facts.system_vendor == "Amazon EC2"
+
 - name: Timezone is UTC (the logs, the venues and the database all speak UTC)
   community.general.timezone:
     name: Etc/UTC
