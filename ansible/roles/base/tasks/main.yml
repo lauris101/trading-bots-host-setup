@@ -17,6 +17,9 @@
   ansible.builtin.apt:
     update_cache: true
     cache_valid_time: 3600
+  # Runs even in --check: it only downloads package lists, and without them
+  # a dry run on a fresh image cannot evaluate the package tasks below.
+  check_mode: false
 
 - name: Packages the stack's scripts and an operator need
   ansible.builtin.apt:
