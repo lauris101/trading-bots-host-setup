@@ -19,7 +19,7 @@ tools:
 
 # First run: log in as root with the password you were given, create the trading-bot account, lock sshd to keys
 bootstrap:
-    {{ansible}} playbook.yml --diff -u root --ask-pass -e ansible_become=false
+    {{ansible}} playbook.yml --diff --ask-pass -e ansible_user=root -e ansible_become=false
 
 # Every later run: as trading-bot with the key (idempotent)
 provision:
