@@ -145,8 +145,8 @@ just provision   # reboots once on a fresh host
 ```
 
 `vars.yml`: `trading_bot_public_key` (default: the key from the inventory),
-`trading_bot_sudo` (default true), `hotpath_isolated_cpus` (default `2-5`,
-must equal `BOT_CPUSET` in the trading-bots `.env`), `crowdsec_*`,
+`trading_bot_sudo` (default true), `hotpath_isolated_cpus` (default `4-7`,
+the cores the bot config pins its spinners to), `crowdsec_*`,
 `data_base_dir`/`logs_base_dir` (prefixes, default empty, as
 `DATA_BASE_DIR`/`LOGS_BASE_DIR` in the `.env`), `host_name`.
 
@@ -195,8 +195,8 @@ As `trading-bot` on the host (`just ssh-bot`):
 git clone git@github.com:lauris101/trading-bots.git && cd trading-bots
 infra/scripts/bootstrap.sh prod            # writes .env; then fill in:
 #   DATABASE_URL / CLICKHOUSE_URL           via the db host's tunnel hostnames (../cloudflare)
-#   BOT_CPUSET=2-6                          the isolated cores plus one shared core
-#   hot_path.parse_cpus/strategy_cpus/send_cpus = [2],[3],[4]   one spinner per isolated core
+#   BOT_CPUSET=2-7                          the isolated cores plus two shared cores
+#   hot_path.parse_cpus/strategy_cpus/send_cpus = [4],[5,6],[7]   one spinner per isolated core
 #   DATA_BASE_DIR= LOGS_BASE_DIR=           empty, as data_base_dir/logs_base_dir
 #   CLOUDFLARE_TUNNEL_TOKEN                 `just app-token` in ../cloudflare
 # place the venue key at ~/.config/hl/key (mode 0600)
@@ -261,11 +261,11 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
 - One SSH key for `admin` and `trading-bot`; `trading-bot` has passwordless
   sudo and is in the docker group; `admin` and `trading-bot` are the only
   SSH users.
-- Cores `2-5` isolated (`isolcpus`): the kernel and every unpinned task stay
+- Cores `4-7` isolated (`isolcpus`): the kernel and every unpinned task stay
   off them, and the scheduler does not balance between them, so the bot pins
-  one spinner per isolated core (`hot_path.*_cpus`). Cores `0`, `1`, `6`,
-  `7` are shared by everything else, the bot's non-hot threads included
-  (`BOT_CPUSET=2-6`). c7g has no SMT.
+  one spinner per isolated core (`hot_path.*_cpus`). Cores `0-3` are shared
+  by everything else; the bot's non-hot threads use `2-3` (`BOT_CPUSET=2-7`)
+  and `0-1` keep the device interrupts. c7g has no SMT.
 - No root volume snapshots; a rebuild is apply, provision, deploy.
 - Terraform state in R2; termination protection on.
 - The ENI's secondary private addresses are chosen by AWS from the subnet.

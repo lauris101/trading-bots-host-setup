@@ -34,10 +34,10 @@ crowdsec_repo_suite: bookworm
 
 # Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), one per
 # spinning bot thread (pinned with hot_path.*_cpus in the bot config). The
-# bot's container gets these plus one shared core (BOT_CPUSET=2-6); the
-# remaining cores are shared by the OS and every other service. c7g.2xlarge
-# has 8 cores, no SMT.
-hotpath_isolated_cpus: "2-5"
+# bot's container gets these plus two shared cores (BOT_CPUSET=2-7); cores
+# 0-3 are shared by the OS and every other service, and 0-1 keep the device
+# interrupts. c7g.2xlarge has 8 cores, no SMT.
+hotpath_isolated_cpus: "4-7"
 
 # Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
 # LOGS_BASE_DIR in the trading-bots .env: the stack mounts
