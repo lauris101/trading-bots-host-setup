@@ -45,16 +45,23 @@
     state: absent
   when: not (trading_bot_sudo | bool)
 
-- name: Data and log roots the stack mounts (DATA_BASE_DIR / LOGS_BASE_DIR)
+- name: Data root the stack mounts (DATA_BASE_DIR), owner only
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ data_base_dir }}/data/trading-bots"
     state: directory
     owner: "{{ trading_bot_user }}"
     group: "{{ trading_bot_user }}"
     mode: "0750"
-  loop:
-    - "{{ data_base_dir }}/data/trading-bots"
-    - "{{ logs_base_dir }}/logs/trading-bots"
+
+# World-readable: fluentd (root) writes the files, control (uid 10001 in
+# its image) reads them for the UI's Logs tab. Nothing secret is logged.
+- name: Log root the stack mounts (LOGS_BASE_DIR), readable by the services
+  ansible.builtin.file:
+    path: "{{ logs_base_dir }}/logs/trading-bots"
+    state: directory
+    owner: "{{ trading_bot_user }}"
+    group: "{{ trading_bot_user }}"
+    mode: "0755"
 
 - name: Hyperliquid key directory, owner-only (the key itself is placed by hand, never by this repo)
   ansible.builtin.file:
