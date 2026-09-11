@@ -1,0 +1,4 @@
+# Role defaults: the c7g.2xlarge layout (8 cores, no SMT). A vars.yml that
+# predates a variable keeps working on these; vars.yml overrides them.
+hotpath_isolated_cpus: "4-7"
+hotpath_housekeeping_cpus: "0-3"
