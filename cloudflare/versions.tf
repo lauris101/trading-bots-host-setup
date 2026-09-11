@@ -30,4 +30,8 @@ terraform {
 }
 
 # Credentials: CLOUDFLARE_API_TOKEN in the environment (README "API token").
-provider "cloudflare" {}
+provider "cloudflare" {
+  # From terraform.tfvars (gitignored), like the R2 keys in backend.hcl;
+  # unset there, the provider reads CLOUDFLARE_API_TOKEN from the environment.
+  api_token = var.cloudflare_api_token
+}

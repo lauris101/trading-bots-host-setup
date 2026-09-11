@@ -1,3 +1,10 @@
+variable "cloudflare_api_token" {
+  description = "API token for the Cloudflare provider (zone DNS edit, Access and tunnels edit). Null: the CLOUDFLARE_API_TOKEN environment variable."
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
 variable "account_id" {
   description = "Cloudflare account id (dashboard, any zone's Overview page, right column)."
   type        = string

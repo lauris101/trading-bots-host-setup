@@ -1,5 +1,9 @@
-# Copy to terraform.tfvars (gitignored) and fill in.
-# The API token is NOT here: export CLOUDFLARE_API_TOKEN=... (README).
+# Copy to terraform.tfvars (gitignored) and fill in. Keep a copy in the
+# password manager with backend.hcl: together they are the restore.
+
+# The Cloudflare API token (README "API token"). Leave it out to use the
+# CLOUDFLARE_API_TOKEN environment variable instead.
+cloudflare_api_token = "<cloudflare api token>"
 
 account_id = "0123456789abcdef0123456789abcdef"
 zone_id    = "0123456789abcdef0123456789abcdef"

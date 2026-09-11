@@ -101,9 +101,12 @@ destroy.
    Custom, with these permissions:
    - Account: **Cloudflare Tunnel: Edit**, **Access: Apps and Policies: Edit**
    - Zone (this zone): **DNS: Edit**, **Zone: Read**
-   Copy the token once; it goes into your shell, not into any file here:
+   Copy the token once into `terraform.tfvars` as `cloudflare_api_token`
+   (gitignored; keep it in the password manager next to `backend.hcl`, the
+   two files together are the restore). Alternatively leave it out of the
+   file and export it instead:
    ```bash
-   export CLOUDFLARE_API_TOKEN=...      # add to ~/.zshrc if you like
+   export CLOUDFLARE_API_TOKEN=...
    ```
 4. Account id and zone id from the zone's Overview page.
 

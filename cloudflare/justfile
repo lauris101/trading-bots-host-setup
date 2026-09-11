@@ -1,6 +1,7 @@
 # cloudflare task runner (run from this directory). `just --list` for an overview.
 # Terraform against the Cloudflare API: tunnels, DNS, Access.
-# Needs CLOUDFLARE_API_TOKEN in the environment (README "API token").
+# The API token comes from terraform.tfvars (cloudflare_api_token) or, unset
+# there, from CLOUDFLARE_API_TOKEN in the environment (README "API token").
 
 tf := "terraform -chdir=."
 
