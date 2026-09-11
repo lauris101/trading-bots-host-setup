@@ -39,6 +39,7 @@
     - { role: base, tags: [base] }
     # The account and its key BEFORE sshd locks root out (bootstrap order).
     - { role: trading_bot_user, tags: [trading_bot_user] }
+    - { role: github_deploy_key, tags: [github_deploy_key] }
     - { role: sshd, tags: [sshd] }
     - { role: docker, tags: [docker] }
     - { role: crowdsec, tags: [crowdsec] }
@@ -57,5 +58,7 @@
         msg:
           - "{{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }} {{ ansible_facts.architecture }}, {{ ansible_facts.processor_vcpus }} vcpu, {{ (ansible_facts.memtotal_mb / 1024) | round(1) }} GiB"
           - "listening beyond loopback: {{ listening.stdout_lines }}"
+          - "github deploy key (add read-only to lauris101/trading-bots-db, Settings > Deploy keys):"
+          - "{{ github_deploy_public_key | default('(role github_deploy_key did not run)') }}"
           - "next: ssh {{ trading_bot_user }}@{{ ansible_host }} and follow README 'Hand-over to trading-bots-db'"
       tags: [always]

@@ -160,6 +160,7 @@ Roles, in order:
 | `docker` | Docker Engine, buildx and compose plugin from download.docker.com (arm64), `live-restore`, `trading-bot` in the docker group |
 | `crowdsec` | CrowdSec 1.8 from its repository, sshd read from the journal, `linux` and `sshd` collections, local API on `crowdsec_lapi_port` (8770), nftables bouncer (DROP, IPv6 off), whitelist `crowdsec_whitelist_cidrs`, optional console enrollment |
 | `secondary_ips` | `aws-secondary-ips` script with a systemd service and 1-minute timer: reads the ENI's addresses from the metadata and adds missing ones to the interface as `/32` |
+| `github_deploy_key` | an ed25519 key pair for the `trading-bot` account (generated on the host, never copied), `~/.ssh/config` pointing github.com at it, GitHub's host keys in `known_hosts`; the public half is printed by the summary and `just deploy-key` |
 | `hotpath` | `isolcpus=domain,managed_irq nohz_full rcu_nocbs` for `hotpath_isolated_cpus` and `irqaffinity` for `hotpath_housekeeping_cpus` via a grub drop-in (reboot only when the line changed); irqbalance banned from the isolated cores; `bot-irq-affinity.service` pins every network queue interrupt to the housekeeping cores at boot; sysctls: 16 MB socket buffers, no slow start after idle, TCP fast open, swappiness 1 |
 
 The play ends by printing the addresses on the interface: the primary
@@ -192,7 +193,10 @@ CrowdSec console; optional.
 
 ### 4. Hand-over to trading-bots
 
-As `trading-bot` on the host (`just ssh-bot`):
+The play generated a GitHub deploy key for the `trading-bot` account and
+printed its public half in the summary (`just deploy-key` prints it again).
+Add it to the `trading-bots` repository as a read-only deploy key
+(Settings, Deploy keys), then, as `trading-bot` on the host (`just ssh-bot`):
 
 ```bash
 git clone git@github.com:lauris101/trading-bots.git && cd trading-bots

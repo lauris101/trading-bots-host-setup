@@ -1,0 +1,50 @@
+# A GitHub deploy key for the trading-bot account: generated here, never
+# copied from a laptop. The play's summary prints the public half; paste it
+# into the repository's Deploy keys (read-only) and the host can clone.
+- name: The account's .ssh directory
+  ansible.builtin.file:
+    path: "/home/{{ trading_bot_user }}/.ssh"
+    state: directory
+    owner: "{{ trading_bot_user }}"
+    group: "{{ trading_bot_user }}"
+    mode: "0700"
+
+- name: Deploy key pair (generated once; kept across runs)
+  ansible.builtin.command:
+    cmd: ssh-keygen -t ed25519 -N "" -C "{{ github_deploy_key_comment }}" -f "{{ github_deploy_key_file }}"
+    creates: "{{ github_deploy_key_file }}"
+  become: true
+  become_user: "{{ trading_bot_user }}"
+
+- name: ssh uses it for github.com
+  ansible.builtin.blockinfile:
+    path: "/home/{{ trading_bot_user }}/.ssh/config"
+    create: true
+    owner: "{{ trading_bot_user }}"
+    group: "{{ trading_bot_user }}"
+    mode: "0600"
+    marker: "# {mark} github deploy key (ansible)"
+    block: |
+      Host github.com
+        User git
+        IdentityFile {{ github_deploy_key_file }}
+        IdentitiesOnly yes
+
+- name: GitHub's host keys are known (no prompt on the first clone)
+  ansible.builtin.known_hosts:
+    path: "/home/{{ trading_bot_user }}/.ssh/known_hosts"
+    name: github.com
+    key: "{{ item }}"
+    state: present
+  loop: "{{ github_host_keys }}"
+  become: true
+  become_user: "{{ trading_bot_user }}"
+
+- name: Read the public key
+  ansible.builtin.slurp:
+    src: "{{ github_deploy_key_file }}.pub"
+  register: github_deploy_key_pub
+
+- name: Remember it for the summary
+  ansible.builtin.set_fact:
+    github_deploy_public_key: "{{ github_deploy_key_pub.content | b64decode | trim }}"

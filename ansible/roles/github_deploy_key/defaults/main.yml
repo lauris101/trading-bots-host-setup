@@ -1,0 +1,9 @@
+# The key pair the host uses to clone its repository from GitHub, generated on
+# the host (the private half never travels). Added on GitHub as a read-only
+# deploy key: repository, Settings, Deploy keys.
+github_deploy_key_file: "/home/{{ trading_bot_user }}/.ssh/id_ed25519_github"
+github_deploy_key_comment: "{{ inventory_hostname }} github deploy key"
+# GitHub's SSH host keys (https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints)
+github_host_keys:
+  - "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+  - "github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg="

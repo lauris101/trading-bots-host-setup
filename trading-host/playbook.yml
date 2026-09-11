@@ -35,6 +35,7 @@
     - { role: base, tags: [base] }
     - { role: sshd, tags: [sshd] }
     - { role: trading_bot_user, tags: [trading_bot_user] }
+    - { role: github_deploy_key, tags: [github_deploy_key] }
     - { role: docker, tags: [docker] }
     - { role: crowdsec, tags: [crowdsec] }
     - { role: secondary_ips, tags: [secondary_ips] }
@@ -53,5 +54,7 @@
           - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}"
           - "interface: {{ addrs.stdout }}"
           - "elastic ips: {{ elastic_ips | default([]) }}"
+          - "github deploy key (add read-only to lauris101/trading-bots, Settings > Deploy keys):"
+          - "{{ github_deploy_public_key | default('(role github_deploy_key did not run)') }}"
           - "next: ssh {{ trading_bot_user }}@{{ ansible_host }} and follow README 'Hand-over to trading-bots'"
       tags: [always]

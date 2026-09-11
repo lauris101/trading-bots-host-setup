@@ -70,7 +70,10 @@ after the first deploy.
 
 ### 3. Hand-over to trading-bots-db
 
-As `trading-bot` on the box (`just ssh`):
+The play generated a GitHub deploy key for the `trading-bot` account and
+printed its public half in the summary (`just deploy-key` prints it again).
+Add it to the `trading-bots-db` repository as a read-only deploy key
+(Settings, Deploy keys), then, as `trading-bot` on the box (`just ssh`):
 
 ```bash
 git clone git@github.com:lauris101/trading-bots-db.git && cd trading-bots-db
