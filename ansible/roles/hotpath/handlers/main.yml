@@ -3,3 +3,9 @@
     msg: "trading-host: rebooting for isolcpus (ansible)"
     reboot_timeout: 300
     post_reboot_delay: 10
+
+- name: Restart irqbalance if present
+  ansible.builtin.systemd:
+    name: irqbalance
+    state: restarted
+  failed_when: false

@@ -2,6 +2,9 @@
 Description=Configure the ENI's secondary private IPs on the interface (elastic IPs)
 After=network-online.target
 Wants=network-online.target
+# The bot's containers auto-start with docker and bind their sockets to
+# these addresses at boot; the addresses must be on the interface first.
+Before=docker.service
 
 [Service]
 Type=oneshot

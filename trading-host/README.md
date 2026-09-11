@@ -160,7 +160,7 @@ Roles, in order:
 | `docker` | Docker Engine, buildx and compose plugin from download.docker.com (arm64), `live-restore`, `trading-bot` in the docker group |
 | `crowdsec` | CrowdSec 1.8 from its repository, sshd read from the journal, `linux` and `sshd` collections, local API on `crowdsec_lapi_port` (8770), nftables bouncer (DROP, IPv6 off), whitelist `crowdsec_whitelist_cidrs`, optional console enrollment |
 | `secondary_ips` | `aws-secondary-ips` script with a systemd service and 1-minute timer: reads the ENI's addresses from the metadata and adds missing ones to the interface as `/32` |
-| `hotpath` | `isolcpus nohz_full rcu_nocbs` for `hotpath_isolated_cpus` via a grub drop-in (reboot only when the line changed); sysctls: 16 MB socket buffers, no slow start after idle, TCP fast open, swappiness 1 |
+| `hotpath` | `isolcpus=domain,managed_irq nohz_full rcu_nocbs` for `hotpath_isolated_cpus` and `irqaffinity` for `hotpath_housekeeping_cpus` via a grub drop-in (reboot only when the line changed); irqbalance banned from the isolated cores; `bot-irq-affinity.service` pins every network queue interrupt to the housekeeping cores at boot; sysctls: 16 MB socket buffers, no slow start after idle, TCP fast open, swappiness 1 |
 
 The play ends by printing the addresses on the interface: the primary
 private address plus one `/32` per extra elastic IP.
@@ -261,11 +261,14 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
 - One SSH key for `admin` and `trading-bot`; `trading-bot` has passwordless
   sudo and is in the docker group; `admin` and `trading-bot` are the only
   SSH users.
-- Cores `4-7` isolated (`isolcpus`): the kernel and every unpinned task stay
-  off them, and the scheduler does not balance between them, so the bot pins
-  one spinner per isolated core (`hot_path.*_cpus`). Cores `0-3` are shared
-  by everything else; the bot's non-hot threads use `2-3` (`BOT_CPUSET=2-7`)
-  and `0-1` keep the device interrupts. c7g has no SMT.
+- Cores `4-7` isolated (`isolcpus=domain,managed_irq`): the kernel and every
+  unpinned task stay off them, the scheduler does not balance between them,
+  and device interrupts avoid them, so the bot pins one spinner per isolated
+  core (`hot_path.*_cpus`). Cores `0-3` are shared by everything else
+  (`hotpath_housekeeping_cpus`); the bot's non-hot threads use `2-3`
+  (`BOT_CPUSET=2-7`) and the network queue interrupts are pinned to `0-3` by
+  `bot-irq-affinity.service` (`irqaffinity=0-3` for the rest). c7g has no
+  SMT.
 - No root volume snapshots; a rebuild is apply, provision, deploy.
 - Terraform state in R2; termination protection on.
 - The ENI's secondary private addresses are chosen by AWS from the subnet.

@@ -7,13 +7,17 @@
     state: directory
     mode: "0755"
 
-- name: Kernel keeps off the isolated cores (isolcpus, nohz_full, rcu_nocbs)
+# isolcpus=domain: the scheduler never places a task on the isolated cores
+# by itself. managed_irq: kernel-managed device interrupts (the NIC queues)
+# avoid them. irqaffinity: every other interrupt's default is the
+# housekeeping set. nohz_full / rcu_nocbs: no tick, no RCU callbacks there.
+- name: Kernel keeps off the isolated cores (isolcpus, managed_irq, irqaffinity, nohz_full, rcu_nocbs)
   ansible.builtin.copy:
     dest: /etc/default/grub.d/90-trading-hotpath.cfg
     mode: "0644"
     content: |
       # Managed by ansible (trading-bots-host-setup). Match BOT_CPUSET in trading-bots/.env.
-      GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX isolcpus={{ hotpath_isolated_cpus }} nohz_full={{ hotpath_isolated_cpus }} rcu_nocbs={{ hotpath_isolated_cpus }}"
+      GRUB_CMDLINE_LINUX="$GRUB_CMDLINE_LINUX isolcpus=domain,managed_irq,{{ hotpath_isolated_cpus }} nohz_full={{ hotpath_isolated_cpus }} rcu_nocbs={{ hotpath_isolated_cpus }} irqaffinity={{ hotpath_housekeeping_cpus }}"
   register: grub_dropin
 
 - name: Regenerate the grub config
@@ -21,6 +25,42 @@
   when: grub_dropin.changed
   changed_when: true
   notify: Reboot for the new kernel command line
+
+# irqbalance would migrate interrupts back onto the isolated cores over time.
+- name: irqbalance leaves the isolated cores alone
+  ansible.builtin.lineinfile:
+    path: /etc/default/irqbalance
+    create: true
+    mode: "0644"
+    regexp: '^IRQBALANCE_BANNED_CPULIST='
+    line: 'IRQBALANCE_BANNED_CPULIST={{ hotpath_isolated_cpus }}'
+  notify: Restart irqbalance if present
+
+# Network interrupts onto the housekeeping cores, now and after every boot
+# (affinity does not persist).
+- name: IRQ affinity script
+  ansible.builtin.copy:
+    src: bot-irq-affinity.sh
+    dest: /usr/local/sbin/bot-irq-affinity.sh
+    mode: "0755"
+
+- name: IRQ affinity unit
+  ansible.builtin.template:
+    src: bot-irq-affinity.service.j2
+    dest: /etc/systemd/system/bot-irq-affinity.service
+    mode: "0644"
+  register: irq_unit
+
+- name: systemd sees the unit
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: irq_unit.changed
+
+- name: IRQ affinity applied now and enabled at boot
+  ansible.builtin.systemd:
+    name: bot-irq-affinity.service
+    enabled: true
+    state: restarted
 
 - name: Network and memory sysctls for a latency-sensitive box
   ansible.posix.sysctl:

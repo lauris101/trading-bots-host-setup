@@ -1,0 +1,12 @@
+[Unit]
+Description=Pin network interrupts to the housekeeping CPUs (trading bot)
+After=network-online.target irqbalance.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=HOUSEKEEPING_CPUS={{ hotpath_housekeeping_cpus }}
+ExecStart=/usr/local/sbin/bot-irq-affinity.sh
+
+[Install]
+WantedBy=multi-user.target
