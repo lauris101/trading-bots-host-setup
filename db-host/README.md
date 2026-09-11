@@ -56,6 +56,7 @@ Roles, in order:
 |---|---|
 | `base` | hostname, UTC, packages (`git just jq curl zstd chrony unattended-upgrades ...`), chrony from the pool (no Amazon link-local source here), security updates without automatic reboots, bounded journald |
 | `trading_bot_user` | the account, its one authorized key, sudoers, `/data/trading-bots` and `/logs/trading-bots` owned by it |
+| `github_deploy_key` | an ed25519 key pair for the `trading-bot` account (generated on the host, never copied), `~/.ssh/config` pointing github.com at it, GitHub's host keys in `known_hosts`; the public half is printed by the summary and `just deploy-key` |
 | `sshd` | keys only, no root, `AllowUsers trading-bot`, tight `MaxStartups`; disables image drop-ins that allow passwords |
 | `docker` | Docker Engine + buildx + compose plugin from download.docker.com (this host's architecture), `trading-bot` in the docker group |
 | `crowdsec` | CrowdSec + nftables bouncer for the open port 22 (see the trading-host README for how it behaves and the `cscli` commands) |
