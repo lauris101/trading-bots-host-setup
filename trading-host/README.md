@@ -181,8 +181,11 @@ sudo cscli metrics                              # lines read, scenarios hit, bou
 sudo nft list table ip crowdsec                 # the live drop set
 ```
 
-Unbanning is done from a whitelisted address (`crowdsec_whitelist_cidrs`)
-or the AWS serial console. Packages come from CrowdSec's repository at the
+A ban applies to the one address that failed, never to the key or the
+account: log in from any other address (a whitelisted one from
+`crowdsec_whitelist_cidrs`, or any address that has not been banned) and
+lift it with `cscli decisions delete`. The AWS serial console is not a way
+in: every account is key-only, and the console prompt needs a password. Packages come from CrowdSec's repository at the
 `bookworm` suite (`crowdsec_repo_suite`); there is no `trixie` suite yet and
 the binaries run on trixie. `crowdsec_enroll_key` enrolls the host in the
 CrowdSec console; optional.
