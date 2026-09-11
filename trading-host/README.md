@@ -196,10 +196,11 @@ git clone git@github.com:lauris101/trading-bots.git && cd trading-bots
 infra/scripts/bootstrap.sh prod            # writes .env; then fill in:
 #   DATABASE_URL / CLICKHOUSE_URL           via the db host's tunnel hostnames (../cloudflare)
 #   BOT_CPUSET=2-7                          the isolated cores plus two shared cores
-#   hot_path.parse_cpus/strategy_cpus/send_cpus = [4],[5,6],[7]   one spinner per isolated core
+#   BOT_HOUSEKEEPING_CPUS=2-3               the bot's non-hot threads
+#   BOT_PARSE_CPUS=4 BOT_STRATEGY_CPUS=5,6 BOT_SEND_CPUS=7   one spinner per isolated core
 #   DATA_BASE_DIR= LOGS_BASE_DIR=           empty, as data_base_dir/logs_base_dir
 #   CLOUDFLARE_TUNNEL_TOKEN                 `just app-token` in ../cloudflare
-# place the venue key at ~/.config/hl/key (mode 0600)
+#   HL_PRIVATE_KEY                          the venue signing key (hex)
 infra/scripts/deploy.sh prod vX.Y.Z        # builds on the host with target-cpu=native
 ```
 
