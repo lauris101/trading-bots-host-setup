@@ -82,6 +82,13 @@ terraform import cloudflare_zero_trust_access_policy.allow_people <account_id>/<
 Otherwise delete the object in the dashboard first. `just destroy` removes
 only what this configuration created.
 
+`just plan` and `just apply` print "Resource Destruction Considerations" for
+`cloudflare_zero_trust_tunnel_cloudflared_config`: the provider cannot
+delete a tunnel's configuration object on its own. It does not need to. The
+configuration belongs to the tunnel, `just destroy` deletes the tunnel, and
+the configuration goes with it. The warning changes nothing about apply or
+destroy.
+
 ## The process
 
 ### 0. Once, in the dashboard
