@@ -105,6 +105,19 @@ latency samples="20":
 
 # --- teardown -----------------------------------------------------------------
 
+# Park: destroy the INSTANCE only (its disk goes with it); the elastic IPs stay allocated, so bypass lists and DNS keep working. README "Park"
+park:
+    just state-backup
+    {{tf}} apply -target=aws_instance.host -var termination_protection=false
+    {{tf}} destroy -target=aws_instance.host
+
+# Unpark: recreate the instance on the same elastic IPs; a fresh disk, so `just provision` again (and a new github deploy key)
+unpark:
+    just state-backup
+    {{tf}} apply
+    just inventory
+    @echo "next: ssh-keygen -R <ip> for the new host key, then just provision"
+
 # Destroy everything: lift termination protection on the instance (confirm), then destroy (confirm). README "Tear down"
 destroy:
     just state-backup

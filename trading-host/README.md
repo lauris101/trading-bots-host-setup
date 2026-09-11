@@ -237,6 +237,31 @@ The bot's status page lists the three addresses under `network` (provider
   (repository README); with neither, `terraform import` each resource by
   id; the tag `project=trading-bots` finds them in the console.
 
+## Park (stop paying for the instance, keep the addresses)
+
+```bash
+# on the host first, so the bot sweeps its orders and the stack stops cleanly:
+#   cd trading-bots && just down
+scp trading-host:trading-bots/.env ~/trading-host.env    # the disk goes with the instance
+just park          # destroys aws_instance.host (and its EIP associations); the 3 EIPs stay
+```
+
+What survives: the three elastic IPs (allocated, unassociated: about
+0.005 USD per hour each), the security group, the subnet, the Cloudflare
+tunnel and Access configuration, the Terraform state. What is gone: the root
+disk, so everything on the host: the trading-bots checkout and its `.env`,
+the docker images, the GitHub deploy key.
+
+```bash
+just unpark        # a new instance on the same EIPs
+ssh-keygen -R <ip> # the new host key, per address you connect to
+just provision     # the OS again; the summary prints a NEW github deploy key
+```
+
+Then the hand-over again: clone (after adding the new deploy key on GitHub),
+put `.env` back, `infra/scripts/deploy.sh prod <tag>`. `bypass_cidrs` and the
+tunnel token are unchanged.
+
 ## Tear down
 
 `just destroy` first applies `termination_protection=false` to the
