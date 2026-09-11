@@ -73,6 +73,17 @@ inventory:
 ips:
     {{tf}} output addresses
 
+# Parked or running: is there an instance in the state, and which elastic IPs are held
+status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if {{tf}} state list 2>/dev/null | grep -qx 'aws_instance.host'; then
+        echo "instance: present ($({{tf}} output -raw instance_id))"
+    else
+        echo "instance: none (parked)"
+    fi
+    echo "elastic ips held:"; {{tf}} output -json public_ips | jq -r '.[]' | sed 's/^/  /'
+
 # --- the OS (ansible) ---------------------------------------------------------
 
 # Check ansible can reach the host as admin
