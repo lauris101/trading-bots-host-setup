@@ -18,7 +18,7 @@ the inventory next to them.
 | `just app-token` | `terraform output -raw app_tunnel_token` | The trading host's tunnel token: `CLOUDFLARE_TUNNEL_TOKEN` in trading-bots `.env`. |
 | `just db-token` | `terraform output -raw db_tunnel_token` | The database host's tunnel token: `CLOUDFLARE_TUNNEL_TOKEN` in trading-bots-db `.env`. |
 | `just tcp <label> <port>` | `cloudflared access tcp --hostname <label>.<domain> --url 127.0.0.1:<port>` | Log in to a TCP hostname from the laptop and forward it locally, e.g. `just tcp db 15432` then `psql -h 127.0.0.1 -p 15432`. |
-| `just tunnels` | two `cloudflared access tcp` in the background: `db` on 15432, `ch` on 19000 | Forward postgres and ClickHouse's native port at once; Ctrl-C closes both. `access tcp` works only for TCP hostnames; the HTTP ones (`chdb`, `ui`, `api`) are used in a browser, or with `cloudflared access curl https://chdb.<domain>/...`. |
+| `just tunnels` | three `cloudflared access tcp` in the background: `db` on 15432, `ch` on 19000, `chhttp` on 18123 | Forward postgres, ClickHouse native and ClickHouse HTTP (for DataGrip and other JDBC clients: `http://127.0.0.1:18123`) at once; Ctrl-C closes all. `access tcp` works only for TCP hostnames, which is why `chhttp` exists beside the browser hostname `chdb`. |
 | `just destroy` | `just state-backup` then `terraform destroy` | Tear down tunnels, DNS names and Access apps. The hosts' cloudflared then fail to connect. |
 | `just help [recipe]` | prints the matching row of this section | Explain one recipe from the directory you are in, e.g. `just help apply`; without an argument, `just --list` plus a pointer here. |
 

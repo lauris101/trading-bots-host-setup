@@ -57,7 +57,8 @@ variable "db_ingress" {
   default = {
     db         = "tcp://127.0.0.1:5432"  # postgres
     ch         = "tcp://127.0.0.1:9000"  # clickhouse native protocol
-    chdb       = "http://127.0.0.1:8123" # clickhouse http
+    chdb       = "http://127.0.0.1:8123" # clickhouse http (browser: Access login)
+    chhttp     = "tcp://127.0.0.1:8123"  # clickhouse http as a TCP route: `cloudflared access tcp` forwards it for JDBC clients (DataGrip)
     scraper    = "http://127.0.0.1:8084" # the scraper's api (control drives it)
     metrics-db = "http://127.0.0.1:9100" # node-exporter
   }

@@ -30,7 +30,7 @@ db-host) is explained in `docs/just.md`.
 2. db-host        just bootstrap                             -> a ready box
 3. cloudflare     just init/plan/apply (bypass_cidrs = the 3 EIPs, the services host, the dev box)
                   just app-token / just db-token             -> CLOUDFLARE_TUNNEL_TOKEN for each .env
-4. on db-host     trading-bots-db: bootstrap.sh, .env (token, R2), deploy    -> db./ch./chdb.<domain>
+4. on db-host     trading-bots-db: bootstrap.sh, .env (token, R2), deploy    -> db./ch./chdb./chhttp.<domain>
 5. on trading-host trading-bots: bootstrap.sh, .env (token, DATABASE_URL via db-proxy), deploy.sh prod vX.Y.Z
 ```
 
