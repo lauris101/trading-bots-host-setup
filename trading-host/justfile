@@ -138,3 +138,14 @@ destroy:
 # The host's GitHub deploy key (public half), to paste into the repository's Deploy keys
 deploy-key:
     ansible -i inventory/hosts.yml all -m ansible.builtin.command -a "cat /home/trading-bot/.ssh/id_ed25519_github.pub" | grep -v -E '^\S+ \| (SUCCESS|CHANGED)'
+
+# Explain a recipe from ../docs/just.md (this directory's section), e.g. `just help apply`; no argument lists them all
+help *recipe:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    doc="{{justfile_directory()}}/../docs/just.md"
+    section="## \`$(basename "{{justfile_directory()}}")/\`"
+    if [ -z "{{recipe}}" ]; then just --list; echo; echo "just help <recipe> explains one; the whole guide: $doc"; exit 0; fi
+    row="$(awk -v s="$section" 'index($0, s) == 1 { on = 1; next } /^## / { on = 0 } on' "$doc" | grep -E '^\| `just {{recipe}}( |`)' || true)"
+    if [ -z "$row" ]; then echo "no recipe '{{recipe}}' in the $(basename "{{justfile_directory()}}") section of $doc"; exit 1; fi
+    echo "$row" | sed -e 's/^| //' -e 's/ |$//' | awk -F' \\| ' '{ printf "%s\n  runs: %s\n  use:  %s\n", $1, $2, $3 }'

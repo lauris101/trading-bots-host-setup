@@ -19,6 +19,7 @@ the inventory next to them.
 | `just db-token` | `terraform output -raw db_tunnel_token` | The database host's tunnel token: `CLOUDFLARE_TUNNEL_TOKEN` in trading-bots-db `.env`. |
 | `just tcp <label> <port>` | `cloudflared access tcp --hostname <label>.<domain> --url 127.0.0.1:<port>` | Log in to a TCP hostname from the laptop and forward it locally, e.g. `just tcp db 15432` then `psql -h 127.0.0.1 -p 15432`. |
 | `just destroy` | `just state-backup` then `terraform destroy` | Tear down tunnels, DNS names and Access apps. The hosts' cloudflared then fail to connect. |
+| `just help [recipe]` | prints the matching row of this section | Explain one recipe from the directory you are in, e.g. `just help apply`; without an argument, `just --list` plus a pointer here. |
 
 ## `trading-host/` (terraform: AWS; ansible: the OS)
 
@@ -45,6 +46,7 @@ the inventory next to them.
 | `just park` | state-backup, termination protection off, `terraform destroy -target=aws_instance.host` | Destroy the instance only, keep the elastic IPs allocated so bypass lists and DNS keep working. No instance charge while parked; the IPs are charged. README "Park". |
 | `just unpark` | state-backup, `terraform apply`, inventory | Recreate the instance on the same elastic IPs. A fresh disk: `ssh-keygen -R <ip>`, then `just provision`, then a new GitHub deploy key. |
 | `just destroy` | state-backup, termination protection off, `terraform destroy` | Everything, including the elastic IPs. README "Tear down". |
+| `just help [recipe]` | prints the matching row of this section | Explain one recipe from the directory you are in, e.g. `just help apply`; without an argument, `just --list` plus a pointer here. |
 
 ## `db-host/` (ansible over a rented VPS)
 
@@ -58,3 +60,4 @@ the inventory next to them.
 | `just ping` | `ansible all -m ping` | Prove the key login works. Run it before trusting that root is locked out. |
 | `just ssh` | `ssh -i <key> trading-bot@<host>` from `inventory.yml` | Shell as the stack's account. |
 | `just deploy-key` | `cat ~/.ssh/id_ed25519_github.pub` on the host via ansible | The host's GitHub deploy key (public half) for the trading-bots-db repository's Deploy keys. |
+| `just help [recipe]` | prints the matching row of this section | Explain one recipe from the directory you are in, e.g. `just help apply`; without an argument, `just --list` plus a pointer here. |
