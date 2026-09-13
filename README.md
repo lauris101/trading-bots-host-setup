@@ -22,6 +22,9 @@ its monitors reach the hostnames without a login.
 
 ## Order
 
+Every `just` recipe of the three directories (cloudflare, trading-host,
+db-host) is explained in `docs/just.md`.
+
 ```
 1. trading-host   just init/plan/apply, just provision      -> 3 elastic IPs, a ready box
 2. db-host        just bootstrap                             -> a ready box

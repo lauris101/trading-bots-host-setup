@@ -137,4 +137,4 @@ destroy:
 
 # The host's GitHub deploy key (public half), to paste into the repository's Deploy keys
 deploy-key:
-    ansible -i inventory.yml all -m ansible.builtin.command -a "cat /home/trading-bot/.ssh/id_ed25519_github.pub" | grep -v -E '^\S+ \| (SUCCESS|CHANGED)'
+    ansible -i inventory/hosts.yml all -m ansible.builtin.command -a "cat /home/trading-bot/.ssh/id_ed25519_github.pub" | grep -v -E '^\S+ \| (SUCCESS|CHANGED)'
