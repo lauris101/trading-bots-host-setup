@@ -25,23 +25,10 @@
     append: true
     password_lock: true
 
-- name: The CI deploy key looks like an OpenSSH public key and has a command
-  ansible.builtin.assert:
-    that:
-      - ci_deploy_public_key is match('^(ssh-(ed25519|rsa)|ecdsa-sha2-nistp[0-9]+|sk-[a-z0-9-]+@openssh.com) [A-Za-z0-9+/=]+')
-      - ci_deploy_command | length > 0
-    fail_msg: "ci_deploy_public_key must be an OpenSSH public key line and ci_deploy_command the one command it may run"
-  when: ci_deploy_public_key | length > 0
-
-# The CI key can do exactly one thing: sshd ignores what the client asks and
-# runs ci_deploy_command (the request arrives in SSH_ORIGINAL_COMMAND).
-- name: Authorized keys are exactly the ones configured
+- name: Authorized key is exactly the one configured
   ansible.posix.authorized_key:
     user: "{{ trading_bot_user }}"
-    key: >-
-      {{ trading_bot_public_key_line }}{% if ci_deploy_public_key | length > 0 %}
-
-      command="{{ ci_deploy_command }}",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty {{ ci_deploy_public_key }}{% endif %}
+    key: "{{ trading_bot_public_key_line }}"
     exclusive: true
 
 - name: Passwordless sudo
