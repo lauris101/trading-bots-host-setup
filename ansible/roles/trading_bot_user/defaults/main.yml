@@ -1,0 +1,7 @@
+# A second key on the account, for a CI runner, restricted to ONE command:
+# sshd runs `ci_deploy_command` for it whatever the client asks, with no pty,
+# no forwarding. Empty: no such key. The database host uses it so the app
+# repo's release workflow can deploy the scraper (trading-bots-db,
+# scripts/ci-deploy-scraper.sh).
+ci_deploy_public_key: ""
+ci_deploy_command: ""

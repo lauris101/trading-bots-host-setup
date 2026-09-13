@@ -8,6 +8,15 @@ trading_bot_public_key: "~/.ssh/id_ed25519_trading.pub"
 # Passwordless sudo: deploy.sh installs packages and creates directories.
 trading_bot_sudo: true
 
+# The app repo's release workflow deploys the scraper here over SSH with its
+# own key (GitHub secret DB_HOST_DEPLOY_KEY). Its public half goes here; on
+# the host it may run only ci_deploy_command (a forced command, no pty, no
+# forwarding), which deploys one scraper tag and nothing else. Make the pair
+# with `ssh-keygen -t ed25519 -f ci-deploy-scraper -N '' -C ci-deploy-scraper`,
+# paste ci-deploy-scraper.pub here and the private file into the secret.
+ci_deploy_public_key: ""
+ci_deploy_command: "/home/{{ trading_bot_user }}/trading-bots-db/scripts/ci-deploy-scraper.sh"
+
 # Who may SSH in after bootstrap. Root is not in the list: once the
 # trading-bot account works, root's password login is over.
 sshd_allow_users:

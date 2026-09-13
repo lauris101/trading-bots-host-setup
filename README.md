@@ -108,3 +108,9 @@ API, databases and metrics are reached through Cloudflare tunnels behind
 Access: listed people log in with a one-time PIN, listed machine addresses
 pass without a login. The trading key is placed on the trading host by hand
 and is in no repository.
+
+The one automated login is the app repo's release workflow deploying the
+scraper to the database host (`ci_deploy_public_key` in `db-host/vars.yml`):
+a dedicated key that sshd binds to a forced command, so it can request one
+scraper tag to be deployed and nothing else, with no pty and no forwarding.
+The private half lives only in the GitHub secret `DB_HOST_DEPLOY_KEY`.
