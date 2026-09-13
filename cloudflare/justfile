@@ -53,6 +53,24 @@ db-token:
 tcp label port:
     cloudflared access tcp --hostname {{label}}.$({{tf}} output -raw domain 2>/dev/null || echo lz-co.xyz) --url 127.0.0.1:{{port}}
 
+# Forward postgres (15432), clickhouse native (19000) and clickhouse http (18123) from this laptop, all at once; Ctrl-C stops all three
+tunnels:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    domain=$({{tf}} output -raw domain 2>/dev/null || echo lz-co.xyz)
+    pids=()
+    trap 'kill "${pids[@]}" 2>/dev/null; wait; echo; echo "tunnels closed"' INT TERM EXIT
+    for pair in db:15432 ch:19000 chdb:18123; do
+        label=${pair%%:*}; port=${pair##*:}
+        cloudflared access tcp --hostname "$label.$domain" --url "127.0.0.1:$port" &
+        pids+=($!)
+    done
+    echo "postgres          127.0.0.1:15432  -> db.$domain"
+    echo "clickhouse native 127.0.0.1:19000  -> ch.$domain"
+    echo "clickhouse http   127.0.0.1:18123  -> chdb.$domain"
+    echo "Ctrl-C closes all three"
+    wait
+
 # Tear down (the hosts' cloudflared then fail to connect; DNS names go away)
 destroy:
     just state-backup
