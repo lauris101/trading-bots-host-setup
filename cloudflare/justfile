@@ -60,7 +60,7 @@ tunnels:
     set -euo pipefail
     domain=$({{tf}} output -raw domain 2>/dev/null || echo lz-co.xyz)
     pids=()
-    trap 'kill "${pids[@]}" 2>/dev/null; wait; echo; echo "tunnels closed"' INT TERM EXIT
+    trap 'kill "${pids[@]}" 2>/dev/null; wait; echo; echo "tunnels closed"; exit 0' INT TERM EXIT
     for pair in db:15432 ch:19000 chhttp:18123; do
         label=${pair%%:*}; port=${pair##*:}
         cloudflared access tcp --hostname "$label.$domain" --url "127.0.0.1:$port" &
