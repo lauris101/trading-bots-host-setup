@@ -66,6 +66,8 @@
       - chrony
       - unattended-upgrades
       - htop
+      # Long jobs on the box (an image build, a log tail) outlive an SSH drop.
+      - tmux
       - iproute2
       - ethtool
       - linux-cpupower
