@@ -326,13 +326,13 @@ ENI's private address.
 
 ### The producer image
 
-The host compiles nothing for hyperstream: `hyperstream/Dockerfile` in
-trading-bots builds Seastar (with DPDK) and then the producer inside the
-image. That build takes 20-40 minutes and several GB, so do it once on the
-dev box or in CI and load the image on the host, as the scraper image is
-handled; building it on the trading host itself would compete with the
-running stack for every core. No Seastar toolchain is installed on the host
-by this playbook.
+The host compiles no Seastar. trading-bots keeps two images: the toolchain
+(`hyperstream/Dockerfile.seastar`, Seastar with DPDK, 20-40 minutes and
+several GB) is built once on the dev box or in CI (`just
+hyperstream-toolchain`, `just hyperstream-toolchain-save`) and loaded on the
+host with `docker load`; the producer (`hyperstream/Dockerfile`) starts
+from it and compiles in about a minute, which is all a deploy rebuilds. No
+Seastar toolchain is installed on the host by this playbook.
 
 ## Settings summary
 
