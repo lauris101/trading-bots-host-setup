@@ -40,6 +40,9 @@
     - { role: crowdsec, tags: [crowdsec] }
     - { role: secondary_ips, tags: [secondary_ips] }
     - { role: hotpath, tags: [hotpath] }
+    # EXPERIMENTAL (trading-bots branch hyperstream): hugepages, vfio-pci,
+    # and the second ENI bound for DPDK when hyperstream_dpdk is on.
+    - { role: hyperstream_host, tags: [hyperstream], when: hyperstream_enabled | default(false) }
 
   post_tasks:
     - name: Addresses the OS carries on the primary interface
@@ -51,7 +54,7 @@
     - name: Summary
       ansible.builtin.debug:
         msg:
-          - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}"
+          - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}{{ ' (hyperstream on ' ~ hyperstream_cpus ~ ')' if hyperstream_enabled | default(false) else '' }}"
           - "interface: {{ addrs.stdout }}"
           - "elastic ips: {{ elastic_ips | default([]) }}"
           - "github deploy key (add read-only to lauris101/trading-bots, Settings > Deploy keys):"

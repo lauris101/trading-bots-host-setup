@@ -1,0 +1,13 @@
+[Unit]
+Description=Bind the hyperstream ENI to vfio-pci for DPDK (trading bot)
+After=network-online.target
+Wants=network-online.target
+Before=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/hyperstream-nic-bind
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

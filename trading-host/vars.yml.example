@@ -33,14 +33,29 @@ crowdsec_lapi_port: 8770
 crowdsec_repo_suite: bookworm
 
 # Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), one per
-# spinning bot thread (pinned with hot_path.*_cpus in the bot config). The
-# bot's container gets these plus two shared cores (BOT_CPUSET=2-7); cores
-# 0-3 are shared by the OS and every other service, and 0-1 keep the device
-# interrupts. c7g.2xlarge has 8 cores, no SMT.
-hotpath_isolated_cpus: "4-7"
+# spinning thread. Without hyperstream: "4-7" for the bot's four pinned
+# workers (hot_path.*_cpus), BOT_CPUSET=2-7, housekeeping "0-3". With
+# hyperstream (below): the producer's two shards take 2-3 as well, so the
+# isolated set is "2-7", housekeeping "0-1", BOT_CPUSET=0-1,4-7 and
+# HYPERSTREAM_CPUSET=2-3 in the trading-bots .env. c7g.2xlarge has 8
+# cores, no SMT. Changing this line reboots the box.
+hotpath_isolated_cpus: "2-7"
 # The other cores: the kernel's default interrupt affinity and every network
 # queue interrupt go here (irqaffinity=, bot-irq-affinity.service).
-hotpath_housekeeping_cpus: "0-3"
+hotpath_housekeeping_cpus: "0-1"
+
+# EXPERIMENTAL: the hyperstream producer's host side (trading-bots branch
+# hyperstream; terraform hyperstream_eni = true for the second ENI).
+hyperstream_enabled: true
+# The producer's cores: inside hotpath_isolated_cpus, disjoint from the
+# bot's pins.
+hyperstream_cpus: "2-3"
+# Hand the second ENI to vfio-pci for DPDK. Start with false: the producer
+# runs on the kernel stack first (the socket race is measured there); flip
+# to true and `just tags hyperstream` for the DPDK run.
+hyperstream_dpdk: false
+# 2 MB hugepages for DPDK (512 = 1 GiB).
+hyperstream_hugepages_2m: 512
 
 # Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
 # LOGS_BASE_DIR in the trading-bots .env: the stack mounts

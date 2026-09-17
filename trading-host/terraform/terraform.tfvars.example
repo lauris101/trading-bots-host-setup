@@ -23,3 +23,7 @@ aws_profile = "trading"
 # root_volume_gb         = 80
 # elastic_ip_count       = 3
 # termination_protection = true
+
+# EXPERIMENTAL: a second ENI for the hyperstream producer's DPDK stack, with
+# the last elastic IP moved onto it (README "Hyperstream").
+# hyperstream_eni = true

@@ -162,6 +162,7 @@ Roles, in order:
 | `secondary_ips` | `aws-secondary-ips` script with a systemd service and 1-minute timer: reads the ENI's addresses from the metadata and adds missing ones to the interface as `/32` |
 | `github_deploy_key` | an ed25519 key pair for the `trading-bot` account (generated on the host, never copied), `~/.ssh/config` pointing github.com at it, GitHub's host keys in `known_hosts`; the public half is printed by the summary and `just deploy-key` |
 | `hotpath` | `isolcpus=domain,managed_irq nohz_full rcu_nocbs` for `hotpath_isolated_cpus` and `irqaffinity` for `hotpath_housekeeping_cpus` via a grub drop-in (reboot only when the line changed); irqbalance banned from the isolated cores; `bot-irq-affinity.service` pins every network queue interrupt to the housekeeping cores at boot; sysctls: 16 MB socket buffers, no slow start after idle, TCP fast open, swappiness 1 |
+| `hyperstream_host` | EXPERIMENTAL, only with `hyperstream_enabled`: `vm.nr_hugepages` (2 MB pages) and `/dev/hugepages`; `vfio` and `vfio-pci` at boot with `enable_unsafe_noiommu_mode=1` (Nitro exposes no guest IOMMU); `hyperstream-nic-bind.service`, enabled only with `hyperstream_dpdk`, finds the ENI at device index 1 through the metadata, records its PCI address, MAC, address, mask and gateway in `/etc/hyperstream/nic.env` and binds it to `vfio-pci` before docker starts |
 
 The play ends by printing the addresses on the interface: the primary
 private address plus one `/32` per extra elastic IP.
@@ -286,6 +287,38 @@ allow-lists that name them (Cloudflare Access `bypass_cidrs`) must be
 updated. To keep them across a destroy: `terraform state rm 'aws_eip.host'`
 before destroying, import them again later; idle EIPs cost USD 11 a month.
 
+## Hyperstream (experimental)
+
+The hyperstream producer (trading-bots branch `hyperstream`) races several
+Binance connections on its own two cores and hands the first arrival of
+every update to the bot through shared memory; with DPDK it drives its own
+network interface with no kernel on the path. The host side, in order:
+
+1. `terraform.tfvars`: `hyperstream_eni = true`; `just apply`. A second ENI
+   is attached to the running instance as device 1 (no replacement) and the
+   LAST elastic IP is moved onto it. `just ips` shows the mapping and the
+   `hyperstream_eni` output names the primary-ENI private address that EIP
+   used to map to: it has no public mapping now, so remove it from the
+   bot's `network` source addresses in its config.
+2. `vars.yml`: `hotpath_isolated_cpus: "2-7"`, `hotpath_housekeeping_cpus:
+   "0-1"`, `hyperstream_enabled: true`, `hyperstream_cpus: "2-3"`,
+   `hyperstream_dpdk: false`; `just provision`. The kernel command line
+   changes, so the box reboots once. Hugepages and vfio are in place; the
+   ENI is idle.
+3. trading-bots `.env`: `HYPERSTREAM_CPUSET=2-3`, `BOT_CPUSET=0-1,4-7`; the
+   bot's `hot_path.*_cpus` stay on 4-7. Run the producer on the kernel stack
+   (compose profile `hyperstream`) and measure the race.
+4. For the DPDK run: `hyperstream_dpdk: true`; `just tags hyperstream`. The
+   bind unit hands the ENI to `vfio-pci` now and on every boot, and writes
+   `/etc/hyperstream/nic.env` (PCI address, MAC, IPv4, netmask, gateway) for
+   the producer's `--network-stack native` arguments. The interface
+   disappears from `ip link`; the primary ENI is untouched.
+
+Undo: `hyperstream_dpdk: false` and `just tags hyperstream` disables the
+unit (a reboot returns the ENI to the kernel); `hyperstream_eni = false`
+and `just apply` detaches the ENI and moves the EIP back to the primary
+ENI's private address.
+
 ## Settings summary
 
 - Port 22 open to the internet (`ssh_allowed_cidrs` default), keys only,
@@ -301,7 +334,9 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
   (`hotpath_housekeeping_cpus`); the bot's non-hot threads use `2-3`
   (`BOT_CPUSET=2-7`) and the network queue interrupts are pinned to `0-3` by
   `bot-irq-affinity.service` (`irqaffinity=0-3` for the rest). c7g has no
-  SMT.
+  SMT. With hyperstream the isolated set is `2-7`, the producer takes `2-3`
+  (`HYPERSTREAM_CPUSET`), the bot's non-hot threads move to `0-1`
+  (`BOT_CPUSET=0-1,4-7`) and interrupts to `0-1`.
 - No root volume snapshots; a rebuild is apply, provision, deploy.
 - Terraform state in R2; termination protection on.
 - The ENI's secondary private addresses are chosen by AWS from the subnet.

@@ -1,0 +1,105 @@
+# The host side of the hyperstream producer: hugepages and the vfio-pci
+# module for DPDK, and, when hyperstream_dpdk is on, the second ENI handed
+# to vfio-pci at boot. The cores come from the hotpath role: put the
+# producer's cores in hotpath_isolated_cpus (vars.yml) and name them in
+# hyperstream_cpus.
+- name: The producer's cores are isolated
+  ansible.builtin.assert:
+    that:
+      - hyperstream_cpus | length > 0
+    fail_msg: "set hyperstream_cpus (inside hotpath_isolated_cpus)"
+
+- name: Tools the bind script uses
+  ansible.builtin.apt:
+    name: [pciutils, curl]
+    state: present
+
+- name: Hugepages reserved at boot (2 MB pages)
+  ansible.posix.sysctl:
+    name: vm.nr_hugepages
+    value: "{{ hyperstream_hugepages_2m }}"
+    sysctl_file: /etc/sysctl.d/91-hyperstream.conf
+    reload: true
+
+- name: hugetlbfs mounted at /dev/hugepages
+  ansible.posix.mount:
+    path: /dev/hugepages
+    src: hugetlbfs
+    fstype: hugetlbfs
+    opts: mode=1770
+    state: mounted
+
+# Nitro exposes no IOMMU to the guest: ENA under DPDK needs vfio-pci in
+# no-IOMMU mode. The kernel names the mode "unsafe" because a misbehaving
+# user-space driver could DMA anywhere; on this box the only such driver is
+# the producer.
+- name: vfio-pci loads at boot
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/hyperstream.conf
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-host-setup): DPDK on the hyperstream ENI.
+      vfio
+      vfio-pci
+
+- name: vfio in no-IOMMU mode (Nitro has no guest IOMMU)
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/hyperstream-vfio.conf
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-host-setup).
+      options vfio enable_unsafe_noiommu_mode=1
+
+- name: vfio loaded now with the option
+  ansible.builtin.shell: |
+    set -e
+    modprobe vfio enable_unsafe_noiommu_mode=1 || true
+    modprobe vfio-pci || true
+    if [ -f /sys/module/vfio/parameters/enable_unsafe_noiommu_mode ]; then
+      echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+    fi
+  changed_when: false
+
+- name: The bind script
+  ansible.builtin.copy:
+    src: hyperstream-nic-bind
+    dest: /usr/local/sbin/hyperstream-nic-bind
+    mode: "0755"
+
+- name: The bind unit
+  ansible.builtin.template:
+    src: hyperstream-nic-bind.service.j2
+    dest: /etc/systemd/system/hyperstream-nic-bind.service
+    mode: "0644"
+  notify: Reload systemd (hyperstream)
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+
+- name: The ENI is handed to vfio-pci now and at boot (hyperstream_dpdk)
+  ansible.builtin.systemd:
+    name: hyperstream-nic-bind.service
+    enabled: true
+    state: started
+  when: hyperstream_dpdk
+
+- name: The ENI stays with the kernel (hyperstream_dpdk off)
+  ansible.builtin.systemd:
+    name: hyperstream-nic-bind.service
+    enabled: false
+  when: not hyperstream_dpdk
+
+- name: What the producer will be told about its NIC
+  ansible.builtin.slurp:
+    src: /etc/hyperstream/nic.env
+  register: nic_env
+  failed_when: false
+  when: hyperstream_dpdk
+
+- name: Show it
+  ansible.builtin.debug:
+    msg:
+      - "hyperstream cores: {{ hyperstream_cpus }} (isolated set {{ hotpath_isolated_cpus }}); hugepages: {{ hyperstream_hugepages_2m }} x 2 MB"
+      - "dpdk: {{ 'ENI bound to vfio-pci' if hyperstream_dpdk else 'off; the ENI is idle and the producer runs on the kernel stack' }}"
+      - "{{ (nic_env.content | b64decode) if (hyperstream_dpdk and nic_env.content is defined) else '' }}"
+      - "trading-bots .env: HYPERSTREAM_CPUSET={{ hyperstream_cpus }}; BOT_CPUSET must leave these cores out"

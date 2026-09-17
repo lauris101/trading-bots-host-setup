@@ -13,8 +13,25 @@ output "public_ips" {
 }
 
 output "addresses" {
-  description = "elastic IP -> private address it is bound to on the ENI."
-  value       = { for i in range(var.elastic_ip_count) : aws_eip.host[i].public_ip => local.private_ips[i] }
+  description = "elastic IP -> private address it is bound to (the last one on the hyperstream ENI when that exists)."
+  value = {
+    for i in range(var.elastic_ip_count) : aws_eip.host[i].public_ip => (
+      i == local.hyperstream_eip_index ? aws_network_interface.hyperstream[0].private_ip : local.private_ips[i]
+    )
+  }
+}
+
+output "hyperstream_eni" {
+  description = "The hyperstream ENI, when hyperstream_eni is set: what the OS binds to vfio-pci and what the producer is told about its address."
+  value = var.hyperstream_eni ? {
+    id         = aws_network_interface.hyperstream[0].id
+    mac        = aws_network_interface.hyperstream[0].mac_address
+    private_ip = aws_network_interface.hyperstream[0].private_ip
+    public_ip  = aws_eip.host[local.hyperstream_eip_index].public_ip
+    # The primary ENI address that EIP used to map to: no public mapping now;
+    # drop it from the bot's `network` source addresses.
+    unmapped_primary_private_ip = local.private_ips[local.hyperstream_eip_index]
+  } : null
 }
 
 output "ssh_private_key_file" {
@@ -40,6 +57,9 @@ output "ansible_inventory" {
           instance_id: ${aws_instance.host.id}
           availability_zone: ${var.availability_zone}
           elastic_ips: ${jsonencode([for i in range(var.elastic_ip_count) : aws_eip.host[i].public_ip])}
+          hyperstream_eni_mac: ${var.hyperstream_eni ? jsonencode(aws_network_interface.hyperstream[0].mac_address) : "null"}
+          hyperstream_eni_private_ip: ${var.hyperstream_eni ? jsonencode(aws_network_interface.hyperstream[0].private_ip) : "null"}
+          hyperstream_public_ip: ${var.hyperstream_eni ? jsonencode(aws_eip.host[local.hyperstream_eip_index].public_ip) : "null"}
           # the same key goes to the trading-bot account (ansible vars.yml)
           ssh_public_key: ${jsonencode(var.ssh_public_key)}
   EOT

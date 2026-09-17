@@ -176,12 +176,51 @@ locals {
   private_ips = sort(tolist(aws_network_interface.primary.private_ips))
 }
 
+# --- the hyperstream ENI (experimental) ----------------------------------------
+
+# A second interface for the hyperstream producer (trading-bots branch
+# hyperstream): DPDK takes a whole NIC, so this one is bound to vfio-pci by
+# the OS (ansible role hyperstream_host) and the kernel never sees it, while
+# the primary ENI keeps SSH, control and the Hyperliquid side. Attached to
+# the running instance as device 1, never through the instance's own
+# network_interface block, which would replace the instance.
+resource "aws_network_interface" "hyperstream" {
+  count = var.hyperstream_eni ? 1 : 0
+
+  subnet_id       = aws_subnet.public.id
+  security_groups = [aws_security_group.host.id]
+  description     = "${var.name} hyperstream ENI (DPDK)"
+
+  tags = { Name = "${var.name}-eni1-hyperstream" }
+}
+
+resource "aws_network_interface_attachment" "hyperstream" {
+  count = var.hyperstream_eni ? 1 : 0
+
+  instance_id          = aws_instance.host.id
+  network_interface_id = aws_network_interface.hyperstream[0].id
+  device_index         = 1
+}
+
+locals {
+  # The last elastic IP moves to the hyperstream ENI when it exists.
+  hyperstream_eip_index = var.hyperstream_eni ? var.elastic_ip_count - 1 : -1
+}
+
 resource "aws_eip_association" "host" {
   count = var.elastic_ip_count
 
-  allocation_id        = aws_eip.host[count.index].id
-  network_interface_id = aws_network_interface.primary.id
-  private_ip_address   = local.private_ips[count.index]
+  allocation_id = aws_eip.host[count.index].id
+  network_interface_id = (
+    count.index == local.hyperstream_eip_index
+    ? aws_network_interface.hyperstream[0].id
+    : aws_network_interface.primary.id
+  )
+  private_ip_address = (
+    count.index == local.hyperstream_eip_index
+    ? aws_network_interface.hyperstream[0].private_ip
+    : local.private_ips[count.index]
+  )
 
-  depends_on = [aws_instance.host]
+  depends_on = [aws_instance.host, aws_network_interface_attachment.hyperstream]
 }
