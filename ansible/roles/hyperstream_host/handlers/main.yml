@@ -1,3 +1,9 @@
 - name: Reload systemd (hyperstream)
   ansible.builtin.systemd:
     daemon_reload: true
+
+- name: Reload networkd (hyperstream)
+  ansible.builtin.systemd:
+    name: systemd-networkd
+    state: reloaded
+  failed_when: false

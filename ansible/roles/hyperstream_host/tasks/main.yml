@@ -60,6 +60,32 @@
     fi
   changed_when: false
 
+# The kernel never configures the hyperstream ENI: no DHCP address, no
+# route, no chance for the bot (or anything else) to leave from it. With
+# hyperstream_dpdk the device is not even the kernel's; without it the ENI
+# sits idle until it is. Matched by MAC from the inventory (terraform).
+- name: The hyperstream ENI's MAC is known
+  ansible.builtin.assert:
+    that:
+      - hyperstream_eni_mac is defined
+      - hyperstream_eni_mac
+    fail_msg: "hyperstream_eni_mac is not in the inventory: terraform hyperstream_eni = true, just apply, just inventory"
+
+- name: The kernel leaves the hyperstream ENI unconfigured (systemd-networkd)
+  ansible.builtin.copy:
+    dest: /etc/systemd/network/05-hyperstream-unmanaged.network
+    mode: "0644"
+    content: |
+      # Managed by ansible (trading-bots-host-setup): the hyperstream ENI is
+      # the producer's (DPDK), never the kernel's. No address, no route.
+      [Match]
+      MACAddress={{ hyperstream_eni_mac }}
+
+      [Link]
+      Unmanaged=yes
+  register: networkd_drop
+  notify: Reload networkd (hyperstream)
+
 - name: The bind script
   ansible.builtin.copy:
     src: hyperstream-nic-bind
