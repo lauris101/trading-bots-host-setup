@@ -154,7 +154,7 @@ Roles, in order:
 
 | role | does |
 |---|---|
-| `base` | hostname, UTC, packages (`git just jq curl zstd chrony unattended-upgrades ...`), chrony on the Amazon Time Sync Service (`169.254.169.123`), security updates without automatic reboots, bounded journald |
+| `base` | hostname, UTC, packages (`git just jq curl zstd tmux chrony unattended-upgrades ...`), chrony on the Amazon Time Sync Service (`169.254.169.123`), security updates without automatic reboots, bounded journald |
 | `sshd` | keys only, no root, `AllowUsers admin trading-bot`, `MaxAuthTries 3`, `LoginGraceTime 20`, `MaxStartups 10:50:30`, per-source limits; disables image drop-ins that allow passwords |
 | `trading_bot_user` | the account, its authorized key (exclusive), sudoers entry, `${data_base_dir}/data/trading-bots` and `${logs_base_dir}/logs/trading-bots` owned by it, `~/.config/hl` (0700) for the venue key |
 | `docker` | Docker Engine, buildx and compose plugin from download.docker.com (arm64), `live-restore`, `trading-bot` in the docker group |
