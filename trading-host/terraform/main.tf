@@ -81,7 +81,9 @@ resource "aws_vpc_security_group_ingress_rule" "hyperstream_to_control" {
   count = var.hyperstream_eni ? 1 : 0
 
   security_group_id = aws_security_group.host.id
-  description       = "hyperstream producer (native stack) -> control"
+  # AWS accepts only a-zA-Z0-9. _-:/()#,@[]+=& and a few more here: no
+  # arrows, and a rejected description fails the whole apply.
+  description       = "hyperstream producer (native stack) to control"
   cidr_ipv4         = "${aws_network_interface.hyperstream[0].private_ip}/32"
   ip_protocol       = "tcp"
   from_port         = var.control_port
