@@ -66,9 +66,14 @@
 # sits idle until it is. Matched by MAC from the inventory (terraform).
 - name: The hyperstream ENI's MAC is known
   ansible.builtin.assert:
+    # Each of these must evaluate to a BOOLEAN: ansible-core 2.19 rejects a
+    # conditional that is merely truthy, and the MAC is a string. The order
+    # matters -- the inventory writes `null` when the ENI does not exist,
+    # and `| length` on none is an error rather than a clean failure.
     that:
       - hyperstream_eni_mac is defined
-      - hyperstream_eni_mac
+      - hyperstream_eni_mac is not none
+      - hyperstream_eni_mac | length > 0
     fail_msg: "hyperstream_eni_mac is not in the inventory: terraform hyperstream_eni = true, just apply, just inventory"
 
 - name: The kernel leaves the hyperstream ENI unconfigured (systemd-networkd)
