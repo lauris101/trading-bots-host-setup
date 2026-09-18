@@ -74,8 +74,15 @@ hyperstream_cpus: "2-3"
 # Control must also be bound to the host's primary private address
 # (API_BIND in the trading-bots .env): the native stack has no loopback.
 hyperstream_dpdk: false
-# 2 MB hugepages for DPDK (512 = 1 GiB).
-hyperstream_hugepages_2m: 512
+# 2 MB hugepages. With DPDK, Seastar's entire heap comes out of these, so
+# they must cover the producer's -m (HYPERSTREAM_MEM in the trading-bots
+# .env) plus what DPDK takes first -- about 44 MiB. Too few and the
+# producer refuses to start:
+#   Could not initialize seastar: insufficient physical memory:
+#   needed 2147483648 available 1027604480
+# 1280 = 2.5 GiB, which covers -m 2G with margin. Reserved out of RAM for
+# good, not reclaimable, so do not overshoot either.
+hyperstream_hugepages_2m: 1280
 
 # Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
 # LOGS_BASE_DIR in the trading-bots .env: the stack mounts
