@@ -70,6 +70,8 @@
       - tmux
       - iproute2
       - ethtool
+      # Reading a directory layout at a glance, on a box with no editor.
+      - tree
       - linux-cpupower
       - python3
       # The deb822_repository module (docker, crowdsec roles) needs it on the host.
