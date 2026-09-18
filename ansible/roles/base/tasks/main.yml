@@ -98,7 +98,7 @@
   when: ansible_facts.system_vendor == "Amazon EC2"
   notify: Restart chrony
 
-- name: Elsewhere, no Amazon source (Debian's pool from the package config does the job)
+- name: Elsewhere, no Amazon source (the distribution's pool does the job)
   ansible.builtin.file:
     path: /etc/chrony/sources.d/aws.sources
     state: absent

@@ -30,7 +30,7 @@
     validate: /usr/sbin/sshd -t -f %s
   notify: Reload sshd
 
-- name: Debian's cloud image drop-ins do not override ours
+- name: The cloud image's own drop-ins do not override ours
   ansible.builtin.find:
     paths: /etc/ssh/sshd_config.d
     patterns: "*.conf"

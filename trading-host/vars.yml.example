@@ -55,16 +55,15 @@ hyperstream_cpus: "2-3"
 # runs on the kernel stack first (the socket race is measured there); flip
 # to true and `just tags hyperstream` for the DPDK run.
 #
-# NOT POSSIBLE ON A DEBIAN KERNEL (checked 2026-09-18, trixie
-# 6.12.107+deb13-cloud-arm64). Nitro gives the guest no IOMMU, so vfio-pci
-# needs no-IOMMU mode, and Debian sets `# CONFIG_VFIO_NOIOMMU is not set`
-# in debian/config/config -- the COMMON fragment, so the generic arm64
-# flavour is no different from the cloud one. The bind fails with
+# Needs a kernel with CONFIG_VFIO_NOIOMMU=y, which is why this host runs
+# Ubuntu. Nitro exposes no IOMMU to the guest, so vfio-pci can only take
+# the ENI in no-IOMMU mode, and Debian compiles that out in the config
+# fragment every flavour inherits -- on Debian 13 the bind failed with
 #   vfio-pci 0000:00:06.0: probe with driver vfio-pci failed with error -22
-# and the module parameter does not exist. Getting past it means igb_uio
-# from dpdk-kmods via DKMS (out of tree, deprecated, rebuilt on every
-# kernel update), or an image whose kernel enables no-IOMMU. Not
-# uio_pci_generic: it needs legacy INTx and ENA is MSI-X only.
+# and the module parameter did not exist. Ubuntu's GA, HWE and aws arm64
+# kernels all ship it (checked 2026-09-18). Worth re-checking after a
+# kernel bump, since Ubuntu updates them often:
+#   cat /sys/module/vfio/parameters/enable_unsafe_noiommu_mode   # Y
 #
 # With true the kernel loses the interface, so the producer must run under
 # the trading-bots compose profile `hyperstream-dpdk` rather than

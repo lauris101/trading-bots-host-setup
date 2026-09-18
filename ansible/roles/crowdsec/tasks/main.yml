@@ -5,11 +5,9 @@
 # static IP on the laptop), so this is the layer that makes that tolerable,
 # with sshd itself key-only.
 #
-# Packages come from CrowdSec's own repository, `bookworm` suite: it has no
-# trixie suite yet, and the packages are static Go binaries that run on
-# trixie unchanged (Debian's own crowdsec package is 1.4 from 2023, too old
-# to take current hub collections). Flip crowdsec_repo_suite when trixie
-# appears.
+# Packages come from CrowdSec's own repository (crowdsec_repo_suite names
+# the release): the distribution's own crowdsec package lags badly -- too
+# old to take current hub collections.
 - name: nftables is present (the bouncer drives it)
   ansible.builtin.apt:
     name: nftables
