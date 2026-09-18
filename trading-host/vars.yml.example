@@ -1,7 +1,7 @@
 # Copy to vars.yml (gitignored) and fill in. Loaded by site.yml.
 
 # The account the trading stack runs under. Its SSH key: by default the same
-# key terraform gave the admin user (ssh_public_key in terraform.tfvars,
+# key terraform gave the ubuntu user (ssh_public_key in terraform.tfvars,
 # carried into the inventory). To use a different one, put a public key
 # line or a path to a .pub file here instead.
 trading_bot_user: trading-bot
@@ -10,9 +10,12 @@ trading_bot_public_key: "{{ ssh_public_key }}"
 # and for the log/data directories; one operator, one box, so on by default.
 trading_bot_sudo: true
 
-# Who else may SSH in. The AMI's admin user stays (Ansible logs in as it).
+# Who else may SSH in. The image's ubuntu account stays (Ansible logs in as it).
 sshd_allow_users:
-  - admin
+  # The image's own account, which ansible logs in as. It is added
+  # automatically whether or not it is listed here, so the play cannot lock
+  # itself out; listing it keeps the file honest about who can get in.
+  - ubuntu
   - "{{ trading_bot_user }}"
 
 # CrowdSec (port 22 is open to the internet). Addresses never to ban: the
@@ -28,19 +31,58 @@ crowdsec_enroll_key: ""
 # CrowdSec's local API (loopback only) defaults to 8080, which control uses
 # on the trading host; it listens here instead. Same value on both hosts.
 crowdsec_lapi_port: 8770
-# CrowdSec's repo has no trixie suite yet; its bookworm packages are static
-# binaries and run on trixie. Change when trixie appears.
-crowdsec_repo_suite: bookworm
+# The suite in CrowdSec's repository: the Ubuntu release name.
+crowdsec_repo_suite: noble
 
 # Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), one per
-# spinning bot thread (pinned with hot_path.*_cpus in the bot config). The
-# bot's container gets these plus two shared cores (BOT_CPUSET=2-7); cores
-# 0-3 are shared by the OS and every other service, and 0-1 keep the device
-# interrupts. c7g.2xlarge has 8 cores, no SMT.
-hotpath_isolated_cpus: "4-7"
+# spinning thread. Without hyperstream: "4-7" for the bot's four pinned
+# workers (hot_path.*_cpus), BOT_CPUSET=2-7, housekeeping "0-3". With
+# hyperstream (below): the producer's two shards take 2-3 as well, so the
+# isolated set is "2-7", housekeeping "0-1", BOT_CPUSET=0-1,4-7 and
+# HYPERSTREAM_CPUSET=2-3 in the trading-bots .env. c7g.2xlarge has 8
+# cores, no SMT. Changing this line reboots the box.
+hotpath_isolated_cpus: "2-7"
 # The other cores: the kernel's default interrupt affinity and every network
 # queue interrupt go here (irqaffinity=, bot-irq-affinity.service).
-hotpath_housekeeping_cpus: "0-3"
+hotpath_housekeeping_cpus: "0-1"
+
+# EXPERIMENTAL: the hyperstream producer's host side (trading-bots branch
+# hyperstream; terraform hyperstream_eni = true for the second ENI).
+hyperstream_enabled: true
+# The producer's cores: inside hotpath_isolated_cpus, disjoint from the
+# bot's pins.
+hyperstream_cpus: "2-3"
+# Hand the second ENI to vfio-pci for DPDK. Start with false: the producer
+# runs on the kernel stack first (the socket race is measured there); flip
+# to true and `just tags hyperstream` for the DPDK run.
+#
+# Needs a kernel with CONFIG_VFIO_NOIOMMU=y, which is why this host runs
+# Ubuntu. Nitro exposes no IOMMU to the guest, so vfio-pci can only take
+# the ENI in no-IOMMU mode, and Debian compiles that out in the config
+# fragment every flavour inherits -- on Debian 13 the bind failed with
+#   vfio-pci 0000:00:06.0: probe with driver vfio-pci failed with error -22
+# and the module parameter did not exist. Ubuntu's GA, HWE and aws arm64
+# kernels all ship it (checked 2026-09-18). Worth re-checking after a
+# kernel bump, since Ubuntu updates them often:
+#   cat /sys/module/vfio/parameters/enable_unsafe_noiommu_mode   # Y
+#
+# With true the kernel loses the interface, so the producer must run under
+# the trading-bots compose profile `hyperstream-dpdk` rather than
+# `hyperstream` -- the kernel-stack one would have no interface to use.
+# The bind unit writes /etc/hyperstream/nic.env with the addresses, the
+# resolved seed peers and control's address; that profile reads it.
+# Control must also be bound to the host's primary private address
+# (API_BIND in the trading-bots .env): the native stack has no loopback.
+hyperstream_dpdk: false
+# 2 MB hugepages. With DPDK, Seastar's entire heap comes out of these, so
+# they must cover the producer's -m (HYPERSTREAM_MEM in the trading-bots
+# .env) plus what DPDK takes first -- about 44 MiB. Too few and the
+# producer refuses to start:
+#   Could not initialize seastar: insufficient physical memory:
+#   needed 2147483648 available 1027604480
+# 1280 = 2.5 GiB, which covers -m 2G with margin. Reserved out of RAM for
+# good, not reclaimable, so do not overshoot either.
+hyperstream_hugepages_2m: 1280
 
 # Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
 # LOGS_BASE_DIR in the trading-bots .env: the stack mounts

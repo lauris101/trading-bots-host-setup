@@ -20,14 +20,18 @@
       ansible.builtin.setup:
       tags: [always]
 
-    - name: Refuse anything but Debian 13 on aarch64
+    # The roles name Ubuntu directly -- the apt repositories for docker and
+    # crowdsec, the `ubuntu` login -- so this is a real prerequisite, not a
+    # preference. The version is pinned because the crowdsec suite in
+    # vars.yml is a release name.
+    - name: Refuse anything but Ubuntu 24.04 on aarch64
       ansible.builtin.assert:
         that:
-          - ansible_facts.distribution == "Debian"
-          - ansible_facts.distribution_major_version == "13"
+          - ansible_facts.distribution == "Ubuntu"
+          - ansible_facts.distribution_major_version == "24"
           - ansible_facts.architecture == "aarch64"
         fail_msg: >-
-          expected Debian 13 on aarch64, found {{ ansible_facts.distribution }}
+          expected Ubuntu 24.04 on aarch64, found {{ ansible_facts.distribution }}
           {{ ansible_facts.distribution_version }} on {{ ansible_facts.architecture }}
       tags: [always]
 
@@ -40,6 +44,9 @@
     - { role: crowdsec, tags: [crowdsec] }
     - { role: secondary_ips, tags: [secondary_ips] }
     - { role: hotpath, tags: [hotpath] }
+    # EXPERIMENTAL (trading-bots branch hyperstream): hugepages, vfio-pci,
+    # and the second ENI bound for DPDK when hyperstream_dpdk is on.
+    - { role: hyperstream_host, tags: [hyperstream], when: hyperstream_enabled | default(false) }
 
   post_tasks:
     - name: Addresses the OS carries on the primary interface
@@ -51,7 +58,7 @@
     - name: Summary
       ansible.builtin.debug:
         msg:
-          - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}"
+          - "kernel: {{ ansible_facts.kernel }}, cmdline isolation: {{ hotpath_isolated_cpus }}{{ ' (hyperstream on ' ~ hyperstream_cpus ~ ')' if hyperstream_enabled | default(false) else '' }}"
           - "interface: {{ addrs.stdout }}"
           - "elastic ips: {{ elastic_ips | default([]) }}"
           - "github deploy key (add read-only to lauris101/trading-bots, Settings > Deploy keys):"

@@ -57,7 +57,7 @@ variable "ssh_allowed_cidrs" {
 }
 
 variable "ssh_public_key" {
-  description = "The one OpenSSH public key for the box: the AMI's built-in 'admin' user gets it at launch (Ansible logs in with it), and Ansible gives it to the trading-bot account. One line, 'ssh-ed25519 AAAA... comment'."
+  description = "The one OpenSSH public key for the box: the image's built-in 'ubuntu' user gets it at launch (Ansible logs in with it), and Ansible gives it to the trading-bot account. One line, 'ssh-ed25519 AAAA... comment'."
   type        = string
 
   validation {
@@ -88,4 +88,16 @@ variable "termination_protection" {
   description = "Refuse API termination of the instance (a `terraform destroy` must first flip this to false and apply). On by default: this box holds state and keys."
   type        = bool
   default     = true
+}
+
+variable "control_port" {
+  description = "Port control's API listens on (API_PORT in the trading-bots .env). Only used to let the hyperstream producer reach it across the VPC."
+  type        = number
+  default     = 8080
+}
+
+variable "hyperstream_eni" {
+  description = "EXPERIMENTAL (trading-bots branch hyperstream). Attach a second network interface for the hyperstream producer's DPDK stack and move the LAST elastic IP onto it. The primary ENI keeps its addresses; the private address that EIP used to map to stays on it without a public mapping, so remove it from the bot's `network` source list. Attached without replacing the instance."
+  type        = bool
+  default     = false
 }

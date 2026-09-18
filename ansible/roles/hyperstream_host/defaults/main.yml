@@ -1,0 +1,17 @@
+# EXPERIMENTAL: the host side of the hyperstream producer (trading-bots
+# branch hyperstream). Off unless vars.yml says otherwise.
+hyperstream_enabled: false
+# Bind the second ENI to vfio-pci so Seastar's native stack drives it with
+# DPDK. false: the interface is left to the kernel (the producer runs on the
+# kernel stack; the ENI is idle).
+hyperstream_dpdk: false
+# 2 MB hugepages reserved at boot. With DPDK these are not just the
+# mempools: Seastar's whole heap comes from them, so this has to cover the
+# producer's -m (HYPERSTREAM_MEM in the trading-bots .env) with room over.
+# DPDK takes ~44 MiB off the top before Seastar counts, so 1024 pages is
+# NOT enough for -m 2G. 1280 = 2.5 GiB, leaving about 470 MiB of margin.
+# Hugepages are reserved out of RAM for good and are not reclaimable.
+hyperstream_hugepages_2m: 1280
+# The isolated cores the producer's shards pin to (its container's cpuset).
+# Must be inside hotpath_isolated_cpus and disjoint from the bot's pins.
+hyperstream_cpus: "2-3"

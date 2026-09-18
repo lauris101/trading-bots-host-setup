@@ -5,11 +5,9 @@
 # static IP on the laptop), so this is the layer that makes that tolerable,
 # with sshd itself key-only.
 #
-# Packages come from CrowdSec's own repository, `bookworm` suite: it has no
-# trixie suite yet, and the packages are static Go binaries that run on
-# trixie unchanged (Debian's own crowdsec package is 1.4 from 2023, too old
-# to take current hub collections). Flip crowdsec_repo_suite when trixie
-# appears.
+# Packages come from CrowdSec's own repository (crowdsec_repo_suite names
+# the release): the distribution's own crowdsec package lags badly -- too
+# old to take current hub collections.
 - name: nftables is present (the bouncer drives it)
   ansible.builtin.apt:
     name: nftables
@@ -19,7 +17,7 @@
   ansible.builtin.deb822_repository:
     name: crowdsec
     types: [deb]
-    uris: https://packagecloud.io/crowdsec/crowdsec/debian
+    uris: https://packagecloud.io/crowdsec/crowdsec/ubuntu
     suites: ["{{ crowdsec_repo_suite }}"]
     components: [main]
     architectures: ["{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"]
@@ -42,7 +40,7 @@
     - /etc/crowdsec/acquis.d
     - /etc/crowdsec/parsers/s02-enrich
 
-- name: sshd is read from the journal (Debian 13 has no /var/log/auth.log without rsyslog)
+- name: sshd is read from the journal (no /var/log/auth.log without rsyslog)
   ansible.builtin.copy:
     dest: /etc/crowdsec/acquis.d/sshd-journal.yaml
     mode: "0644"

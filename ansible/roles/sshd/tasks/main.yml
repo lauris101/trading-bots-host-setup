@@ -16,7 +16,12 @@
       KbdInteractiveAuthentication no
       PermitRootLogin no
       PubkeyAuthentication yes
-      AllowUsers {{ sshd_allow_users | join(' ') }}
+      # The account ansible is connected as is always allowed, whatever
+      # sshd_allow_users says. Leaving it out locks the playbook out of the
+      # host it is halfway through configuring -- and the symptom is not a
+      # refused login, it is the next reboot handler hanging until it times
+      # out, because the existing connection keeps working until then.
+      AllowUsers {{ (sshd_allow_users + [ansible_user]) | unique | join(' ') }}
       X11Forwarding no
       AllowAgentForwarding no
       MaxAuthTries 3
@@ -30,7 +35,7 @@
     validate: /usr/sbin/sshd -t -f %s
   notify: Reload sshd
 
-- name: Debian's cloud image drop-ins do not override ours
+- name: The cloud image's own drop-ins do not override ours
   ansible.builtin.find:
     paths: /etc/ssh/sshd_config.d
     patterns: "*.conf"
