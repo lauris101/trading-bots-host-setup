@@ -320,7 +320,12 @@ network interface with no kernel on the path. The host side, in order:
    the kernel stack (compose profile `hyperstream`) and measure the race.
    In this phase the producer leaves from the host's default route (the
    primary address), not from its own EIP.
-4. For the DPDK run: `hyperstream_dpdk: true`; `just tags hyperstream`. The
+4. For the DPDK run: `hyperstream_dpdk: true`; `just tags hyperstream`.
+   **This does not work on a Debian kernel** -- see the note on
+   `hyperstream_dpdk` in `vars.yml.example`: no-IOMMU vfio is compiled out
+   of every Debian flavour, and Nitro has no guest IOMMU, so the bind fails
+   with `probe with driver vfio-pci failed with error -22`. The rest of
+   this step is what to do once that is solved. The
    bind unit hands the ENI to `vfio-pci` now and on every boot, and writes
    `/etc/hyperstream/nic.env`: the PCI address, MAC, IPv4, netmask and
    gateway, plus two things the producer cannot work out once the kernel is
