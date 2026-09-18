@@ -1,7 +1,7 @@
 # Copy to vars.yml (gitignored) and fill in. Loaded by site.yml.
 
 # The account the trading stack runs under. Its SSH key: by default the same
-# key terraform gave the admin user (ssh_public_key in terraform.tfvars,
+# key terraform gave the ubuntu user (ssh_public_key in terraform.tfvars,
 # carried into the inventory). To use a different one, put a public key
 # line or a path to a .pub file here instead.
 trading_bot_user: trading-bot
@@ -10,9 +10,11 @@ trading_bot_public_key: "{{ ssh_public_key }}"
 # and for the log/data directories; one operator, one box, so on by default.
 trading_bot_sudo: true
 
-# Who else may SSH in. The AMI's admin user stays (Ansible logs in as it).
+# Who else may SSH in. The image's ubuntu account stays (Ansible logs in as it).
 sshd_allow_users:
-  - admin
+  # The image's own account. Ansible logs in as it, so removing it locks
+  # the playbook out.
+  - ubuntu
   - "{{ trading_bot_user }}"
 
 # CrowdSec (port 22 is open to the internet). Addresses never to ban: the
@@ -28,9 +30,8 @@ crowdsec_enroll_key: ""
 # CrowdSec's local API (loopback only) defaults to 8080, which control uses
 # on the trading host; it listens here instead. Same value on both hosts.
 crowdsec_lapi_port: 8770
-# CrowdSec's repo has no trixie suite yet; its bookworm packages are static
-# binaries and run on trixie. Change when trixie appears.
-crowdsec_repo_suite: bookworm
+# The suite in CrowdSec's repository: the Ubuntu release name.
+crowdsec_repo_suite: noble
 
 # Cores the kernel keeps off (isolcpus, nohz_full, rcu_nocbs), one per
 # spinning thread. Without hyperstream: "4-7" for the bot's four pinned

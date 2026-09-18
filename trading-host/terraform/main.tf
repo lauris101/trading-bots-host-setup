@@ -104,15 +104,26 @@ resource "aws_key_pair" "admin" {
   public_key = var.ssh_public_key
 }
 
-# Latest official Debian 13 (trixie) arm64 image. Debian's cloud team
-# publishes under this account id in every region.
-data "aws_ami" "debian13_arm64" {
+# Latest official Ubuntu 24.04 (noble) arm64 image, published by Canonical
+# under this account id in every region.
+#
+# Ubuntu rather than Debian for one reason: CONFIG_VFIO_NOIOMMU. Nitro
+# exposes no IOMMU to the guest, so binding a NIC to vfio-pci for DPDK
+# needs VFIO's no-IOMMU mode, and Debian sets it off in the config
+# fragment every flavour inherits -- the bind fails with
+#   vfio-pci ...: probe with driver vfio-pci failed with error -22
+# Ubuntu ships CONFIG_VFIO_NOIOMMU=y in both the GA and HWE arm64 kernels
+# (verified 2026-09-18 against the shipped configs).
+#
+# The playbook targets Ubuntu, not "a Debian-family box": the apt repo
+# URLs name it. Changing distribution again means editing those too.
+data "aws_ami" "ubuntu_arm64" {
   most_recent = true
-  owners      = ["136693071363"]
+  owners      = ["099720109477"]
 
   filter {
     name   = "name"
-    values = ["debian-13-arm64-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*"]
   }
   filter {
     name   = "architecture"
@@ -138,7 +149,7 @@ resource "aws_network_interface" "primary" {
 }
 
 resource "aws_instance" "host" {
-  ami           = data.aws_ami.debian13_arm64.id
+  ami           = data.aws_ami.ubuntu_arm64.id
   instance_type = var.instance_type
   key_name      = aws_key_pair.admin.key_name
   ebs_optimized = true

@@ -57,7 +57,7 @@ variable "ssh_allowed_cidrs" {
 }
 
 variable "ssh_public_key" {
-  description = "The one OpenSSH public key for the box: the AMI's built-in 'admin' user gets it at launch (Ansible logs in with it), and Ansible gives it to the trading-bot account. One line, 'ssh-ed25519 AAAA... comment'."
+  description = "The one OpenSSH public key for the box: the image's built-in 'ubuntu' user gets it at launch (Ansible logs in with it), and Ansible gives it to the trading-bot account. One line, 'ssh-ed25519 AAAA... comment'."
   type        = string
 
   validation {

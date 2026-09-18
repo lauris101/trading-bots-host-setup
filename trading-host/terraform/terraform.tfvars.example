@@ -5,7 +5,7 @@
 # CrowdSec bans brute-forcers. With a fixed address, list /32s instead:
 # ssh_allowed_cidrs = ["78.47.39.128/32", "167.233.189.172/32"]
 
-# The one SSH key: the AMI's `admin` user (Ansible's login) and, through
+# The one SSH key: the image's `ubuntu` user (Ansible's login) and, through
 # Ansible, the trading-bot account.
 ssh_public_key = "ssh-ed25519 AAAA... you@laptop"
 # Its private half on this laptop (goes into the ansible inventory).

@@ -263,6 +263,34 @@ Then the hand-over again: clone (after adding the new deploy key on GitHub),
 put `.env` back, `infra/scripts/deploy.sh prod <tag>`. `bypass_cidrs` and the
 tunnel token are unchanged.
 
+## Rebuilding on a new image
+
+The instance carries `ignore_changes = [ami]`, so a newer image never
+replaces a running trading host by surprise. Changing image is therefore
+deliberate: park, apply, unpark.
+
+```bash
+# on the host: keep what the disk is about to lose
+cd trading-bots && just down
+scp trading-host:trading-bots/.env ~/trading-host.env
+scp trading-host:.config/hl/key ~/hl-key            # the signing key
+just park                    # instance gone, the 3 elastic IPs stay
+just apply                   # picks up the new AMI in the data source
+just unpark                  # a new instance on the same addresses
+ssh-keygen -R <ip>           # per address you connect to
+just provision               # prints a NEW github deploy key
+```
+
+Then the hand-over again: add the deploy key on GitHub, clone, restore
+`.env` and the signing key, `docker load` or rebuild the Seastar toolchain
+image (`just hyperstream-toolchain-on-host`, 20-40 minutes -- the long pole
+in the whole rebuild), `just hyperstream-image`, and
+`infra/scripts/deploy.sh prod <tag>`. `bypass_cidrs`, the tunnel token and
+the Cloudflare configuration are untouched throughout.
+
+This host runs **Ubuntu 24.04 (noble) arm64**. It was Debian 13 until
+2026-09-18; see the AMI data source for why it is not any more.
+
 ## Tear down
 
 `just destroy` first applies `termination_protection=false` to the

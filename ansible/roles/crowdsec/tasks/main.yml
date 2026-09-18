@@ -19,7 +19,7 @@
   ansible.builtin.deb822_repository:
     name: crowdsec
     types: [deb]
-    uris: https://packagecloud.io/crowdsec/crowdsec/debian
+    uris: https://packagecloud.io/crowdsec/crowdsec/ubuntu
     suites: ["{{ crowdsec_repo_suite }}"]
     components: [main]
     architectures: ["{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"]
@@ -42,7 +42,7 @@
     - /etc/crowdsec/acquis.d
     - /etc/crowdsec/parsers/s02-enrich
 
-- name: sshd is read from the journal (Debian 13 has no /var/log/auth.log without rsyslog)
+- name: sshd is read from the journal (no /var/log/auth.log without rsyslog)
   ansible.builtin.copy:
     dest: /etc/crowdsec/acquis.d/sshd-journal.yaml
     mode: "0644"
