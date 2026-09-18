@@ -3,8 +3,8 @@ output "instance_id" {
 }
 
 output "ami" {
-  description = "The Debian image the host was launched from (pinned by lifecycle.ignore_changes)."
-  value       = { id = aws_instance.host.ami, name = data.aws_ami.debian13_arm64.name }
+  description = "The image the host was launched from (pinned by lifecycle.ignore_changes)."
+  value       = { id = aws_instance.host.ami, name = data.aws_ami.ubuntu_arm64.name }
 }
 
 output "public_ips" {
