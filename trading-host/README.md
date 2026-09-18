@@ -296,10 +296,17 @@ network interface with no kernel on the path. The host side, in order:
 
 1. `terraform.tfvars`: `hyperstream_eni = true`; `just apply`. A second ENI
    is attached to the running instance as device 1 (no replacement) and the
-   LAST elastic IP is moved onto it. `just ips` shows the mapping and the
-   `hyperstream_eni` output names the primary-ENI private address that EIP
-   used to map to: it has no public mapping now, so remove it from the
-   bot's `network` source addresses in its config.
+   LAST elastic IP is moved onto it. That is always a SECONDARY private
+   address: the ENI's primary carries the host's default route, so the
+   ordering behind these associations puts it first and it is never the one
+   taken. `just ips` shows the mapping and the `hyperstream_eni` output
+   names the private address that EIP used to map to: it has no public
+   mapping now and this subnet has no NAT, so anything bound to it reaches
+   nothing. Put it in the bot's `network.exclude_ips`.
+
+   Enabling this on a host whose associations predate the ordering change
+   re-associates all of the elastic IPs, a few seconds each, so do it in
+   the same window as the rest.
 2. `vars.yml`: `hotpath_isolated_cpus: "2-7"`, `hotpath_housekeeping_cpus:
    "0-1"`, `hyperstream_enabled: true`, `hyperstream_cpus: "2-3"`,
    `hyperstream_dpdk: false`; `just provision`. The kernel command line

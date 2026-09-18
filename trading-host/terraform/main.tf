@@ -186,10 +186,26 @@ resource "aws_eip" "host" {
   tags = { Name = "${var.name}-${count.index}" }
 }
 
-# private_ips is a set; sorting it gives a stable index -> address mapping,
-# so the same EIP stays on the same private address across applies.
+# private_ips is a set, so it needs an order to give a stable index ->
+# address mapping and keep the same EIP on the same private address across
+# applies. The ENI's PRIMARY address goes first and the secondaries follow,
+# sorted.
+#
+# Not a plain sort of all of them. The primary address carries the host's
+# default route: everything that does not bind a source address leaves from
+# it -- the cloudflared tunnel, the database tunnel, apt, docker. The
+# hyperstream ENI takes the LAST elastic IP, so a plain sort can put the
+# primary last and strand the whole box's outbound traffic (on this host
+# 10.20.1.50 sorts after .249 and .28, and is the primary). First means it
+# is never the one taken.
 locals {
-  private_ips = sort(tolist(aws_network_interface.primary.private_ips))
+  private_ips = concat(
+    [aws_network_interface.primary.private_ip],
+    sort(tolist(setsubtract(
+      aws_network_interface.primary.private_ips,
+      [aws_network_interface.primary.private_ip],
+    ))),
+  )
 }
 
 # --- the hyperstream ENI (experimental) ----------------------------------------
