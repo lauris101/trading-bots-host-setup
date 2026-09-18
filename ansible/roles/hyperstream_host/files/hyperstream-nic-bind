@@ -20,6 +20,7 @@ for m in $(md network/interfaces/macs/ | tr -d '/'); do
   if [ "$(md "network/interfaces/macs/$m/device-number")" = "1" ]; then MAC="$m"; fi
 done
 [ -n "$MAC" ] || { echo "hyperstream-nic-bind: no ENI at device index 1" >&2; exit 1; }
+echo "hyperstream-nic-bind: device 1 is $MAC" 
 
 IP="$(md "network/interfaces/macs/$MAC/local-ipv4s" | head -1)"
 CIDR="$(md "network/interfaces/macs/$MAC/subnet-ipv4-cidr-block")"
@@ -39,6 +40,7 @@ elif [ -f /etc/hyperstream/nic.env ]; then
   PCI="$(sed -n 's/^HYPERSTREAM_PCI=//p' /etc/hyperstream/nic.env)"
 fi
 [ -n "$PCI" ] || { echo "hyperstream-nic-bind: cannot find the PCI device for $MAC" >&2; exit 1; }
+echo "hyperstream-nic-bind: $MAC is $PCI (netdev '${IFACE:-gone}')" 
 
 # Two things the producer cannot work out for itself once it is on the
 # native stack, recorded here while the kernel still has a network.
@@ -69,13 +71,64 @@ HYPERSTREAM_CONTROL_IP=$CONTROL_IP
 HYPERSTREAM_PEER_IPS=$PEERS
 EOF
 
-current="$(basename "$(readlink -f "/sys/bus/pci/devices/$PCI/driver" 2>/dev/null || echo none)")"
+# Which driver has it now. `readlink -f` SUCCEEDS on a path whose last
+# component does not exist -- it just prints it -- so a driverless device
+# would come out as "driver" and the unbind below would go to
+# /sys/bus/pci/drivers/driver/unbind. Test the symlink instead. A device
+# can genuinely be driverless: a previous run that unbound and then failed
+# to bind leaves it exactly there.
+if [ -L "/sys/bus/pci/devices/$PCI/driver" ]; then
+  current="$(basename "$(readlink -f "/sys/bus/pci/devices/$PCI/driver")")"
+else
+  current=none
+fi
 if [ "$current" = "vfio-pci" ]; then
   echo "hyperstream-nic-bind: $PCI ($MAC, $IP/$PREFIX) already on vfio-pci"; exit 0
 fi
-modprobe vfio-pci
+echo "hyperstream-nic-bind: $PCI ($MAC, $IP/$PREFIX, gw $GW) is on '$current'; moving it to vfio-pci"
+
+modprobe vfio-pci || {
+  echo "hyperstream-nic-bind: modprobe vfio-pci failed; is the module built for $(uname -r)?" >&2
+  exit 1
+}
+
+# Nitro gives the guest no IOMMU, so vfio-pci can only take the device in
+# no-IOMMU mode. Without it the bind fails with EIO -- the driver's probe
+# refusing the device -- which says nothing about why. The module
+# parameter is ignored when vfio is already loaded, so setting it at
+# runtime is the reliable path; the modprobe.d drop-in covers the boot.
+NOIOMMU=/sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+if [ ! -d "/sys/bus/pci/devices/$PCI/iommu_group" ]; then
+  if [ ! -f "$NOIOMMU" ]; then
+    echo "hyperstream-nic-bind: $PCI has no IOMMU group and this kernel has no" >&2
+    echo "  VFIO no-IOMMU support ($NOIOMMU is absent, CONFIG_VFIO_NOIOMMU=n)." >&2
+    echo "  vfio-pci cannot drive this device on $(uname -r)." >&2
+    exit 1
+  fi
+  case "$(cat "$NOIOMMU")" in
+    Y|y|1) ;;
+    *) echo 1 > "$NOIOMMU" 2>/dev/null || true ;;
+  esac
+  case "$(cat "$NOIOMMU")" in
+    Y|y|1) echo "hyperstream-nic-bind: vfio no-IOMMU mode is on (no guest IOMMU here)" ;;
+    *) echo "hyperstream-nic-bind: cannot enable vfio no-IOMMU mode ($NOIOMMU is $(cat "$NOIOMMU")); the bind would fail with EIO" >&2
+       exit 1 ;;
+  esac
+fi
 if [ -n "$IFACE" ]; then ip link set dev "$IFACE" down || true; fi
 echo vfio-pci > "/sys/bus/pci/devices/$PCI/driver_override"
-if [ "$current" != "none" ]; then echo "$PCI" > "/sys/bus/pci/drivers/$current/unbind"; fi
-echo "$PCI" > /sys/bus/pci/drivers/vfio-pci/bind
+if [ "$current" != "none" ]; then
+  echo "$PCI" > "/sys/bus/pci/drivers/$current/unbind"
+fi
+# Already bound is success, not failure: with driver_override set, some
+# kernels re-probe the device onto vfio-pci as soon as it is released, and
+# the explicit bind then fails with EBUSY or ENODEV.
+if [ ! -L "/sys/bus/pci/devices/$PCI/driver" ]; then
+  echo "$PCI" > /sys/bus/pci/drivers/vfio-pci/bind || true
+fi
+now="$(basename "$(readlink -f "/sys/bus/pci/devices/$PCI/driver" 2>/dev/null)")"
+[ "$now" = "vfio-pci" ] || {
+  echo "hyperstream-nic-bind: $PCI is on '$now' after the bind, not vfio-pci" >&2
+  exit 1
+}
 echo "hyperstream-nic-bind: $PCI ($MAC, $IP/$PREFIX, gw $GW) bound to vfio-pci (was $current)"

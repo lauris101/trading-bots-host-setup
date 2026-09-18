@@ -50,15 +50,31 @@
       # Managed by ansible (trading-bots-host-setup).
       options vfio enable_unsafe_noiommu_mode=1
 
-- name: vfio loaded now with the option
+# Every step here used to end in `|| true`, so a kernel without no-IOMMU
+# support, or a vfio already loaded without the parameter, looked like
+# success and failed later at the bind with an EIO that explains nothing.
+- name: vfio loaded now, in no-IOMMU mode
   ansible.builtin.shell: |
     set -e
-    modprobe vfio enable_unsafe_noiommu_mode=1 || true
-    modprobe vfio-pci || true
-    if [ -f /sys/module/vfio/parameters/enable_unsafe_noiommu_mode ]; then
-      echo 1 > /sys/module/vfio/parameters/enable_unsafe_noiommu_mode
-    fi
+    modprobe vfio enable_unsafe_noiommu_mode=1 || modprobe vfio
+    modprobe vfio-pci
+    p=/sys/module/vfio/parameters/enable_unsafe_noiommu_mode
+    [ -f "$p" ] || { echo "no $p: this kernel has CONFIG_VFIO_NOIOMMU=n" >&2; exit 1; }
+    case "$(cat $p)" in Y|y|1) ;; *) echo 1 > "$p" ;; esac
+    cat "$p"
+  register: vfio_noiommu
   changed_when: false
+  when: hyperstream_dpdk
+
+- name: no-IOMMU mode is really on
+  ansible.builtin.assert:
+    that:
+      - vfio_noiommu.stdout | trim in ["Y", "y", "1"]
+    fail_msg: >-
+      vfio no-IOMMU mode is off ({{ vfio_noiommu.stdout | default('?') }}).
+      Nitro exposes no IOMMU to the guest, so vfio-pci cannot take the ENI
+      and the bind fails with EIO.
+  when: hyperstream_dpdk
 
 # The kernel never configures the hyperstream ENI: no DHCP address, no
 # route, no chance for the bot (or anything else) to leave from it. With
