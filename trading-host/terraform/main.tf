@@ -72,6 +72,22 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   to_port           = 22
 }
 
+# The hyperstream producer on Seastar's native stack has no loopback: it
+# cannot reach control at 127.0.0.1, so it goes across the VPC from the
+# hyperstream ENI's address to the primary ENI's. One source address, one
+# port, and only while that ENI exists. Control must also listen on more
+# than loopback for this to land (API_BIND in the trading-bots .env).
+resource "aws_vpc_security_group_ingress_rule" "hyperstream_to_control" {
+  count = var.hyperstream_eni ? 1 : 0
+
+  security_group_id = aws_security_group.host.id
+  description       = "hyperstream producer (native stack) -> control"
+  cidr_ipv4         = "${aws_network_interface.hyperstream[0].private_ip}/32"
+  ip_protocol       = "tcp"
+  from_port         = var.control_port
+  to_port           = var.control_port
+}
+
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.host.id
   description       = "all outbound"

@@ -90,6 +90,12 @@ variable "termination_protection" {
   default     = true
 }
 
+variable "control_port" {
+  description = "Port control's API listens on (API_PORT in the trading-bots .env). Only used to let the hyperstream producer reach it across the VPC."
+  type        = number
+  default     = 8080
+}
+
 variable "hyperstream_eni" {
   description = "EXPERIMENTAL (trading-bots branch hyperstream). Attach a second network interface for the hyperstream producer's DPDK stack and move the LAST elastic IP onto it. The primary ENI keeps its addresses; the private address that EIP used to map to stays on it without a public mapping, so remove it from the bot's `network` source list. Attached without replacing the instance."
   type        = bool

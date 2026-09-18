@@ -315,9 +315,25 @@ network interface with no kernel on the path. The host side, in order:
    primary address), not from its own EIP.
 4. For the DPDK run: `hyperstream_dpdk: true`; `just tags hyperstream`. The
    bind unit hands the ENI to `vfio-pci` now and on every boot, and writes
-   `/etc/hyperstream/nic.env` (PCI address, MAC, IPv4, netmask, gateway) for
-   the producer's `--network-stack native` arguments. The interface
-   disappears from `ip link`; the primary ENI is untouched.
+   `/etc/hyperstream/nic.env`: the PCI address, MAC, IPv4, netmask and
+   gateway, plus two things the producer cannot work out once the kernel is
+   off its path -- the PRIMARY ENI's address to reach control on, and venue
+   addresses resolved while DNS still worked, to seed the peer pool. The
+   interface disappears from `ip link`; the primary ENI is untouched.
+
+   Two more things must be true, or the producer starts and then cannot
+   reach control. Seastar's native stack has no loopback, so control has to
+   be listening on the host's primary private address: set `API_BIND` to it
+   in the trading-bots `.env` (never `0.0.0.0` -- the API has no auth of its
+   own and this host has public addresses). And `just apply` must have run
+   with `hyperstream_eni = true` since this change, which is what adds the
+   security-group rule admitting that one source address on `control_port`.
+
+   Then run the producer under the trading-bots compose profile
+   `hyperstream-dpdk` INSTEAD of `hyperstream`: it is the same image with
+   the privileges, hugepages, `/dev/vfio` and the PCI tree, and it reads
+   `nic.env` for all of the above. The kernel-stack profile would have no
+   interface left to use.
 
 Undo: `hyperstream_dpdk: false` and `just tags hyperstream` disables the
 unit (a reboot returns the ENI to the kernel); `hyperstream_eni = false`

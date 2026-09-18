@@ -25,5 +25,9 @@ aws_profile = "trading"
 # termination_protection = true
 
 # EXPERIMENTAL: a second ENI for the hyperstream producer's DPDK stack, with
-# the last elastic IP moved onto it (README "Hyperstream").
+# the last elastic IP moved onto it (README "Hyperstream"). Also opens
+# control's port to that ENI's address alone, which is the only way the
+# producer can reach it once it is on Seastar's native stack (no loopback).
 # hyperstream_eni = true
+# The port that rule opens, if control does not listen on 8080.
+# control_port = 8080

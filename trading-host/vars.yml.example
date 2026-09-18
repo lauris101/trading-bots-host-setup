@@ -53,6 +53,14 @@ hyperstream_cpus: "2-3"
 # Hand the second ENI to vfio-pci for DPDK. Start with false: the producer
 # runs on the kernel stack first (the socket race is measured there); flip
 # to true and `just tags hyperstream` for the DPDK run.
+#
+# With true the kernel loses the interface, so the producer must run under
+# the trading-bots compose profile `hyperstream-dpdk` rather than
+# `hyperstream` -- the kernel-stack one would have no interface to use.
+# The bind unit writes /etc/hyperstream/nic.env with the addresses, the
+# resolved seed peers and control's address; that profile reads it.
+# Control must also be bound to the host's primary private address
+# (API_BIND in the trading-bots .env): the native stack has no loopback.
 hyperstream_dpdk: false
 # 2 MB hugepages for DPDK (512 = 1 GiB).
 hyperstream_hugepages_2m: 512
