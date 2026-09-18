@@ -12,8 +12,9 @@ trading_bot_sudo: true
 
 # Who else may SSH in. The image's ubuntu account stays (Ansible logs in as it).
 sshd_allow_users:
-  # The image's own account. Ansible logs in as it, so removing it locks
-  # the playbook out.
+  # The image's own account, which ansible logs in as. It is added
+  # automatically whether or not it is listed here, so the play cannot lock
+  # itself out; listing it keeps the file honest about who can get in.
   - ubuntu
   - "{{ trading_bot_user }}"
 
