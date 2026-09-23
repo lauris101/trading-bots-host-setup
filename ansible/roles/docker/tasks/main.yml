@@ -23,6 +23,19 @@
     state: present
     update_cache: true
 
+# The trading host is aarch64 and builds the scraper image for the x86-64
+# database host (`just publish-scraper <tag>` in the app repo): the compile is
+# a cross build, but packaging the amd64 runtime image runs one `apt-get`
+# under emulation, which needs binfmt handlers for x86-64. Nothing to do on an
+# x86-64 host.
+- name: Emulation for building amd64 images on an arm64 host (publish-scraper)
+  ansible.builtin.apt:
+    name:
+      - qemu-user-static
+      - binfmt-support
+    state: present
+  when: ansible_facts.architecture == 'aarch64'
+
 - name: /etc/docker exists
   ansible.builtin.file:
     path: /etc/docker
