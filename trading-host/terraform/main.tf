@@ -72,24 +72,6 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
   to_port           = 22
 }
 
-# The hyperstream producer on Seastar's native stack has no loopback: it
-# cannot reach control at 127.0.0.1, so it goes across the VPC from the
-# hyperstream ENI's address to the primary ENI's. One source address, one
-# port, and only while that ENI exists. Control must also listen on more
-# than loopback for this to land (API_BIND in the trading-bots .env).
-resource "aws_vpc_security_group_ingress_rule" "hyperstream_to_control" {
-  count = var.hyperstream_eni ? 1 : 0
-
-  security_group_id = aws_security_group.host.id
-  # AWS accepts only a-zA-Z0-9. _-:/()#,@[]+=& and a few more here: no
-  # arrows, and a rejected description fails the whole apply.
-  description = "hyperstream producer (native stack) to control"
-  cidr_ipv4   = "${aws_network_interface.hyperstream[0].private_ip}/32"
-  ip_protocol = "tcp"
-  from_port   = var.control_port
-  to_port     = var.control_port
-}
-
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.host.id
   description       = "all outbound"
@@ -104,26 +86,15 @@ resource "aws_key_pair" "admin" {
   public_key = var.ssh_public_key
 }
 
-# Latest official Ubuntu 24.04 (noble) arm64 image, published by Canonical
-# under this account id in every region.
-#
-# Ubuntu rather than Debian for one reason: CONFIG_VFIO_NOIOMMU. Nitro
-# exposes no IOMMU to the guest, so binding a NIC to vfio-pci for DPDK
-# needs VFIO's no-IOMMU mode, and Debian sets it off in the config
-# fragment every flavour inherits -- the bind fails with
-#   vfio-pci ...: probe with driver vfio-pci failed with error -22
-# Ubuntu ships CONFIG_VFIO_NOIOMMU=y in both the GA and HWE arm64 kernels
-# (verified 2026-09-18 against the shipped configs).
-#
-# The playbook targets Ubuntu, not "a Debian-family box": the apt repo
-# URLs name it. Changing distribution again means editing those too.
-data "aws_ami" "ubuntu_arm64" {
+# Latest official Debian 13 (trixie) arm64 image. Debian's cloud team
+# publishes under this account id in every region.
+data "aws_ami" "debian13_arm64" {
   most_recent = true
-  owners      = ["099720109477"]
+  owners      = ["136693071363"]
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-arm64-server-*"]
+    values = ["debian-13-arm64-*"]
   }
   filter {
     name   = "architecture"
@@ -149,7 +120,7 @@ resource "aws_network_interface" "primary" {
 }
 
 resource "aws_instance" "host" {
-  ami           = data.aws_ami.ubuntu_arm64.id
+  ami           = data.aws_ami.debian13_arm64.id
   instance_type = var.instance_type
   key_name      = aws_key_pair.admin.key_name
   ebs_optimized = true
@@ -202,15 +173,8 @@ resource "aws_eip" "host" {
 # private_ips is a set, so it needs an order to give a stable index ->
 # address mapping and keep the same EIP on the same private address across
 # applies. The ENI's PRIMARY address goes first and the secondaries follow,
-# sorted.
-#
-# Not a plain sort of all of them. The primary address carries the host's
-# default route: everything that does not bind a source address leaves from
-# it -- the cloudflared tunnel, the database tunnel, apt, docker. The
-# hyperstream ENI takes the LAST elastic IP, so a plain sort can put the
-# primary last and strand the whole box's outbound traffic (on this host
-# 10.20.1.50 sorts after .249 and .28, and is the primary). First means it
-# is never the one taken.
+# sorted: the primary carries the host's default route, so pinning it to
+# index 0 keeps that mapping readable however the addresses sort.
 locals {
   private_ips = concat(
     [aws_network_interface.primary.private_ip],
@@ -221,51 +185,12 @@ locals {
   )
 }
 
-# --- the hyperstream ENI (experimental) ----------------------------------------
-
-# A second interface for the hyperstream producer (trading-bots branch
-# hyperstream): DPDK takes a whole NIC, so this one is bound to vfio-pci by
-# the OS (ansible role hyperstream_host) and the kernel never sees it, while
-# the primary ENI keeps SSH, control and the Hyperliquid side. Attached to
-# the running instance as device 1, never through the instance's own
-# network_interface block, which would replace the instance.
-resource "aws_network_interface" "hyperstream" {
-  count = var.hyperstream_eni ? 1 : 0
-
-  subnet_id       = aws_subnet.public.id
-  security_groups = [aws_security_group.host.id]
-  description     = "${var.name} hyperstream ENI (DPDK)"
-
-  tags = { Name = "${var.name}-eni1-hyperstream" }
-}
-
-resource "aws_network_interface_attachment" "hyperstream" {
-  count = var.hyperstream_eni ? 1 : 0
-
-  instance_id          = aws_instance.host.id
-  network_interface_id = aws_network_interface.hyperstream[0].id
-  device_index         = 1
-}
-
-locals {
-  # The last elastic IP moves to the hyperstream ENI when it exists.
-  hyperstream_eip_index = var.hyperstream_eni ? var.elastic_ip_count - 1 : -1
-}
-
 resource "aws_eip_association" "host" {
   count = var.elastic_ip_count
 
-  allocation_id = aws_eip.host[count.index].id
-  network_interface_id = (
-    count.index == local.hyperstream_eip_index
-    ? aws_network_interface.hyperstream[0].id
-    : aws_network_interface.primary.id
-  )
-  private_ip_address = (
-    count.index == local.hyperstream_eip_index
-    ? aws_network_interface.hyperstream[0].private_ip
-    : local.private_ips[count.index]
-  )
+  allocation_id        = aws_eip.host[count.index].id
+  network_interface_id = aws_network_interface.primary.id
+  private_ip_address   = local.private_ips[count.index]
 
-  depends_on = [aws_instance.host, aws_network_interface_attachment.hyperstream]
+  depends_on = [aws_instance.host]
 }
