@@ -202,8 +202,8 @@ Add it to the `trading-bots` repository as a read-only deploy key
 git clone git@github.com:lauris101/trading-bots.git && cd trading-bots
 infra/scripts/bootstrap.sh prod            # writes .env; then fill in:
 #   DATABASE_URL / CLICKHOUSE_URL           via the db host's tunnel hostnames (../cloudflare)
-#   BOT_CPUSET=2-7                          the isolated cores
-#   BOT_HOUSEKEEPING_CPUS=2                  the bot's non-hot threads
+#   BOT_CPUSET=0-7                          every core; the pins do the work
+#   BOT_HOUSEKEEPING_CPUS=0-1               the bot's non-hot threads, never an isolated core
 #   BOT_PARSE_CPUS=4 BOT_STRATEGY_CPUS=5,6 BOT_SEND_CPUS=7   one spinner per isolated core
 #     (3 is free for a second parse worker: BOT_PARSE_CPUS=3,4 as sockets grow)
 #   DATA_BASE_DIR= LOGS_BASE_DIR=           empty, as data_base_dir/logs_base_dir
@@ -325,8 +325,12 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
   and device interrupts avoid them, so the bot pins one spinner per isolated
   core (`hot_path.*_cpus`). Cores `0-1` are shared by everything else
   (`hotpath_housekeeping_cpus`), and the network queue interrupts are pinned
-  there by `bot-irq-affinity.service` (`irqaffinity=0-1` for the rest);
-  `BOT_CPUSET=2-7`. c7g has no SMT. Six isolated rather than four because a
+  there by `bot-irq-affinity.service` (`irqaffinity=0-1` for the rest).
+  The bot's container takes every core (`BOT_CPUSET=0-7`) and pins instead:
+  the spinners to one isolated core each, everything else to
+  `BOT_HOUSEKEEPING_CPUS=0-1`. The cpuset has to include `0-1` or that pin
+  cannot be applied and the runtime floats onto a spinner core. c7g has no
+  SMT. Six isolated rather than four because a
   parse worker's poll lap grows with the sockets it holds (about 1.2 us
   each), and the kernel-buffer wait every quote pays is about one lap: cores
   `2-3` are there to be spent on a second parse worker as venues and raced

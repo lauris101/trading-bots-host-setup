@@ -89,5 +89,3 @@ variable "termination_protection" {
   type        = bool
   default     = true
 }
-
-

@@ -47,7 +47,8 @@ crowdsec_repo_suite: bookworm
 # (measured 2026-09-29: six sockets, 7.1 us lap, 8 us p50 wait). Cores 2-3
 # are there to be spent on a second parse worker (BOT_PARSE_CPUS) as
 # sockets are added, which racing and a second leader venue both do.
-# BOT_CPUSET=2-7 in the trading-bots .env.
+# BOT_CPUSET=0-7 and BOT_HOUSEKEEPING_CPUS=0-1 in the trading-bots .env:
+# the container needs 0-1 in its cpuset for the housekeeping pin to take.
 hotpath_isolated_cpus: "2-7"
 # The other cores: the kernel's default interrupt affinity and every network
 # queue interrupt go here (irqaffinity=, bot-irq-affinity.service).
