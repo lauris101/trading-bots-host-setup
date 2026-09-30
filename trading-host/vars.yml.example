@@ -40,19 +40,21 @@ crowdsec_repo_suite: bookworm
 # spinning bot thread (pinned with hot_path.*_cpus in the bot config).
 # c7g.2xlarge has 8 cores, no SMT. Changing this line reboots the box.
 #
-# Six isolated rather than the four the bot pinned originally: market data
-# now carries every venue in both roles on the same parse workers, and a
-# parse worker's poll lap -- and so the kernel-buffer wait every quote
-# pays -- grows with the number of sockets it holds, about 1.2 us each
-# (measured 2026-09-29: six sockets, 7.1 us lap, 8 us p50 wait). Cores 2-3
-# are there to be spent on a second parse worker (BOT_PARSE_CPUS) as
-# sockets are added, which racing and a second leader venue both do.
-# BOT_CPUSET=0-7 and BOT_HOUSEKEEPING_CPUS=0-1 in the trading-bots .env:
-# the container needs 0-1 in its cpuset for the housekeeping pin to take.
-hotpath_isolated_cpus: "2-7"
-# The other cores: the kernel's default interrupt affinity and every network
-# queue interrupt go here (irqaffinity=, bot-irq-affinity.service).
-hotpath_housekeeping_cpus: "0-1"
+# Five isolated, one per spinner: two parse (3,4), two strategy (5,6),
+# one send (7). Two parse workers rather than the original one because
+# market data now carries every venue in both roles on the same workers,
+# and a parse worker's poll lap -- and so the kernel-buffer wait every
+# quote pays -- grows with the sockets it holds, about 1.2 us each
+# (measured 2026-09-29: six sockets, 7.1 us lap, 8 us p50 wait).
+#
+# In the trading-bots .env: BOT_CPUSET=0-7, BOT_HOUSEKEEPING_CPUS=0-2,
+# BOT_PARSE_CPUS=3,4 BOT_STRATEGY_CPUS=5,6 BOT_SEND_CPUS=7. The cpuset has
+# to include 0-2 or the housekeeping pin cannot be applied.
+hotpath_isolated_cpus: "3-7"
+# The other cores: the kernel, the bot's tokio and logger threads, the
+# kernel's default interrupt affinity and every network queue interrupt
+# (irqaffinity=, bot-irq-affinity.service).
+hotpath_housekeeping_cpus: "0-2"
 
 # Prefixes for the stack's data and log roots, exactly as DATA_BASE_DIR and
 # LOGS_BASE_DIR in the trading-bots .env: the stack mounts
