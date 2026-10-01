@@ -8,6 +8,35 @@
 # Packages come from CrowdSec's own repository (crowdsec_repo_suite names
 # the Debian release): Debian's own crowdsec package is 1.4 from 2023, too
 # old to take current hub collections.
+# The repository is Debian's, so the suite is a DEBIAN release name. Setting
+# an Ubuntu codename is the easy mistake and it does not fail here -- it
+# fails later, as a 404 from `apt update` in the middle of a provision. Ask
+# the repository up front instead, which also catches a suite that has been
+# withdrawn and tells us when trixie finally appears.
+- name: CrowdSec's repository serves the configured suite
+  ansible.builtin.uri:
+    url: "{{ crowdsec_repo_uri }}/dists/{{ crowdsec_repo_suite }}/Release"
+    method: HEAD
+    status_code: [200, 302]
+  register: crowdsec_suite_probe
+  failed_when: false
+  changed_when: false
+  # A read, and the one thing a dry run most needs to tell you.
+  check_mode: false
+
+- name: The suite is one the repository has
+  ansible.builtin.assert:
+    that:
+      - crowdsec_suite_probe.status in [200, 302]
+    fail_msg: >-
+      crowdsec_repo_suite is "{{ crowdsec_repo_suite }}", which
+      {{ crowdsec_repo_uri }} does not serve (HTTP
+      {{ crowdsec_suite_probe.status | default('no answer') }}). It takes a
+      Debian release name; an Ubuntu codename such as noble is the usual
+      mistake. bookworm's packages are static Go binaries and run on trixie
+      unchanged, so bookworm is the answer until trixie appears.
+    success_msg: "{{ crowdsec_repo_suite }}"
+
 - name: nftables is present (the bouncer drives it)
   ansible.builtin.apt:
     name: nftables
@@ -17,7 +46,7 @@
   ansible.builtin.deb822_repository:
     name: crowdsec
     types: [deb]
-    uris: https://packagecloud.io/crowdsec/crowdsec/debian
+    uris: "{{ crowdsec_repo_uri }}"
     suites: ["{{ crowdsec_repo_suite }}"]
     components: [main]
     architectures: ["{{ 'arm64' if ansible_facts.architecture == 'aarch64' else 'amd64' }}"]

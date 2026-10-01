@@ -1,0 +1,4 @@
+# CrowdSec's own repository. Named here rather than inline because the
+# suite is checked against it before anything uses it, and a URI written
+# twice is a URI that drifts.
+crowdsec_repo_uri: https://packagecloud.io/crowdsec/crowdsec/debian
