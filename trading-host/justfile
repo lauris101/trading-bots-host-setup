@@ -118,6 +118,21 @@ ssh-bot:
 az-probe seconds="120":
     az-probe/run.sh {{seconds}}
 
+# Tear down a probe stack that an interrupted run left behind, and show what
+# is still up. `just az-probe` cleans up after itself; this is for when it
+# was killed hard enough not to.
+az-probe-clean:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cd az-probe
+    terraform destroy -var "ssh_private_key_file=${KEY:-$HOME/.ssh/id_ed25519_trading}"
+    echo "still running in the region (should be the trading host alone):"
+    aws ${AWS_PROFILE:+--profile "$AWS_PROFILE"} ec2 describe-instances \
+      --region ap-northeast-1 \
+      --filters Name=instance-state-name,Values=running,pending \
+      --query 'Reservations[].Instances[].[Tags[?Key==`Name`]|[0].Value,InstanceId,InstanceType]' \
+      --output table
+
 # TCP connect latency from the host to both legs, Binance and Hyperliquid (compare AZs on the SUM)
 latency samples="20":
     ssh -i $({{tf}} output -raw ssh_private_key_file) $({{tf}} output -raw ssh | sed 's/^ssh //') 'LC_ALL=C bash -s' -- {{samples}} < scripts/venue-latency.sh

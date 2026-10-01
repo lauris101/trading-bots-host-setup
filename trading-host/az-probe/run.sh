@@ -39,7 +39,12 @@ cleanup() {
     exit 1
   }
 }
-trap cleanup EXIT INT TERM
+# INT/TERM exit rather than running cleanup directly: a bash trap handler
+# RETURNS to where it interrupted, so sharing the handler would tear the
+# stack down and then carry on talking to the instances it just destroyed.
+# Exiting fires the EXIT trap, which is the one that cleans up.
+trap cleanup EXIT
+trap 'echo; echo "interrupted -- destroying, give it a minute"; exit 130' INT TERM
 
 say "building one instance per zone"
 terraform init -input=false >/dev/null

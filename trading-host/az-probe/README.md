@@ -53,6 +53,18 @@ building with it.
 `per zone` is what production would get, since the bot races every address
 and acts on whichever answers first. This is the line to decide on.
 
+## Stopping a run early
+
+Ctrl-C once, then wait. The script traps it and destroys the stack, which
+takes a minute or two. A second Ctrl-C is what actually strands instances.
+
+If it was killed hard enough to skip the teardown:
+
+    just az-probe-clean
+
+which destroys whatever is left and then lists what is still running in the
+region -- the trading host should be the only thing in that table.
+
 ## Safety
 
 Its own VPC on `10.30.0.0/16` (production is `10.20.0.0/16`), its own local
