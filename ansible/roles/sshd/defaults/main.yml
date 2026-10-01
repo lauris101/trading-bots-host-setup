@@ -1,0 +1,10 @@
+# Who may SSH in, BESIDES the account ansible is connected as. That one is
+# appended by the task itself (see AllowUsers), so the image's own login --
+# `admin` on Debian, `ubuntu` on Ubuntu -- never needs listing here and the
+# distribution is named in exactly one place: terraform's `ssh_admin_user`,
+# which becomes `ansible_user` in the inventory.
+#
+# Override in vars.yml only to admit someone else; an override REPLACES this
+# list, so keep the trading account in it.
+sshd_allow_users:
+  - "{{ trading_bot_user }}"

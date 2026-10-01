@@ -10,13 +10,15 @@ trading_bot_public_key: "{{ ssh_public_key }}"
 # and for the log/data directories; one operator, one box, so on by default.
 trading_bot_sudo: true
 
-# Who else may SSH in. The AMI's admin account stays (Ansible logs in as it).
-sshd_allow_users:
-  # The image's own account, which ansible logs in as. It is added
-  # automatically whether or not it is listed here, so the play cannot lock
-  # itself out; listing it keeps the file honest about who can get in.
-  - admin
-  - "{{ trading_bot_user }}"
+# Who else may SSH in. Not normally set: the role already allows the
+# trading account and the account ansible is connected as (the image's own
+# login, from terraform's ssh_admin_user), so the distribution is named in
+# one place only. Set this to admit an extra human, and keep the trading
+# account in the list -- an override replaces the default, it does not add
+# to it.
+# sshd_allow_users:
+#   - "{{ trading_bot_user }}"
+#   - someone-else
 
 # CrowdSec (port 22 is open to the internet). Addresses never to ban: the
 # dev box, any fixed address you trust. The laptop has none, so it relies on

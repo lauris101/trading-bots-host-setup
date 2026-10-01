@@ -316,7 +316,10 @@ before destroying, import them again later; idle EIPs cost USD 11 a month.
 - Port 22 open to the internet (`ssh_allowed_cidrs` default), keys only,
   CrowdSec with the nftables bouncer; the dev box's addresses whitelisted.
   Everything else is reached through the Cloudflare tunnel (`../cloudflare`).
-- One SSH key for `admin` and `trading-bot`; `trading-bot` has passwordless
+- One SSH key for the image's own account and `trading-bot`; the image's
+  account is whatever `ssh_admin_user` says (`admin` on Debian) and is
+  allowed by sshd automatically, because it is the account Ansible connects
+  as. `trading-bot` has passwordless
   sudo and is in the docker group; `admin` and `trading-bot` are the only
   SSH users.
 - Cores `3-7` isolated (`isolcpus=domain,managed_irq`): the kernel and every
