@@ -66,6 +66,25 @@ variable "ssh_public_key" {
   }
 }
 
+variable "ssh_admin_user" {
+  description = <<-EOT
+    The image's own login account, which Ansible connects as. Debian's
+    cloud image calls it `admin`, which is what this host runs and what
+    the playbook's roles name.
+
+    It is a variable because the account changes with the image while the
+    instance does not: `lifecycle.ignore_changes = [ami]` keeps a running
+    box on the AMI it booted from, so after a distribution change the
+    config and the live host disagree until the box is rebuilt. Set it to
+    the account the RUNNING host actually has (`ssh_admin_user = "ubuntu"`
+    in terraform.tfvars) and delete that line once the rebuild lands.
+    Getting it wrong is a refused login, never a lockout: the sshd role
+    always allows the account Ansible is connected as.
+  EOT
+  type        = string
+  default     = "admin"
+}
+
 variable "ssh_private_key_file" {
   description = "Path on the laptop to the private half of ssh_public_key; written into the ansible inventory so every login uses it."
   type        = string

@@ -19,6 +19,12 @@ aws_profile = "trading"
 # region                 = "ap-northeast-1"
 # availability_zone      = "ap-northeast-1a"
 # name                   = "trading-host"
+# The image's own login account, which Ansible connects as. Debian is
+# `admin`. Set this to what the RUNNING host has while it differs from the
+# image this config names -- a distribution change does not move a live
+# instance, because the AMI is pinned. Delete the line after the rebuild.
+# ssh_admin_user = "ubuntu"
+
 # instance_type          = "c7g.2xlarge"
 # root_volume_gb         = 80
 # elastic_ip_count       = 3
