@@ -12,11 +12,19 @@ set -euo pipefail
 cd "$(dirname "$0")"
 
 SECONDS_CAPTURE="${1:-120}"
+# A short capture is a quick look, so do not spend a minute of the run on
+# the reference handshakes it is not waiting for.
+SAMPLES_HS=$([ "${SECONDS_CAPTURE%%.*}" -lt 60 ] && echo 10 || echo 30)
+STARTED=$(date +%s)
 SYMBOLS="${SYMBOLS:-btcusdt,ethusdt,solusdt,xrpusdt,dogeusdt,bnbusdt,adausdt,suiusdt,linkusdt,avaxusdt}"
 KEY="${KEY:-$HOME/.ssh/id_ed25519_trading}"
 OUT="results-$(date -u +%Y%m%dT%H%M%SZ)"
+# SetEnv pins the remote locale instead of forwarding the Mac's. A probe box
+# is a raw AMI that never meets the base role, so it has no en_US.UTF-8 and
+# would warn on every command; and C is the locale these scripts want anyway,
+# since sort -n and awk's decimal separator both follow it.
 SSH_OPTS=(-i "$KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-          -o LogLevel=ERROR -o ConnectTimeout=10)
+          -o LogLevel=ERROR -o ConnectTimeout=10 -o SetEnv=LC_ALL=C)
 
 say() { printf '\n== %s\n' "$*"; }
 
@@ -55,20 +63,28 @@ for z in "${ZONES[@]}"; do
   echo "  $z ${ADDR[$z]} up"
 done
 
-say "preparing the boxes (chrony, so the three clocks can be compared)"
+say "disciplining the clocks (the cross-zone comparison rests on them)"
 for z in "${ZONES[@]}"; do
   ssh "${SSH_OPTS[@]}" "admin@${ADDR[$z]}" 'bash -s' <<'REMOTE' &
 set -e
-sudo apt-get -qq update
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y chrony >/dev/null
-# The link-local Amazon time source: same stratum for every zone, which is
-# what makes the three arrival clocks comparable at microsecond scale.
-echo 'server 169.254.169.123 prefer iburst minpoll 4 maxpoll 4' \
-  | sudo tee /etc/chrony/conf.d/aws.conf >/dev/null
-sudo systemctl restart chrony
-sleep 20
-sudo chronyc -a makestep >/dev/null || true
-sleep 10
+# The Debian AWS image usually ships chrony already pointed at the
+# link-local Amazon source. Installing it again costs a minute of apt on
+# every box, so only do it when it is genuinely missing.
+if ! command -v chronyc >/dev/null; then
+  sudo apt-get -qq update
+  sudo DEBIAN_FRONTEND=noninteractive apt-get -qq install -y chrony >/dev/null
+fi
+# Same source for every zone at the same stratum: that is what makes the
+# three arrival clocks comparable at microsecond scale.
+if ! grep -rqs 169.254.169.123 /etc/chrony; then
+  echo 'server 169.254.169.123 prefer iburst minpoll 4 maxpoll 4' \
+    | sudo tee /etc/chrony/conf.d/aws.conf >/dev/null
+  sudo systemctl restart chrony
+fi
+# Wait exactly as long as sync needs instead of sleeping a fixed 30 s.
+sudo chronyc -a makestep >/dev/null 2>&1 || true
+chronyc waitsync 12 0.0005 >/dev/null 2>&1 || \
+  echo "WARNING: clock not within 500 us of the source on $(hostname)" >&2
 REMOTE
 done
 wait
@@ -110,12 +126,14 @@ for z in "${ZONES[@]}"; do
 done
 
 say "handshake matrix (TCP connect, for reference)"
+# All zones at once: sequentially this was a minute of the run on its own,
+# and it is the reference number, not the result.
 for z in "${ZONES[@]}"; do
-  echo "  zone $z"
-  ssh "${SSH_OPTS[@]}" "admin@${ADDR[$z]}" "PEERS='$PEERS' bash -s" <<'REMOTE'
+  ssh "${SSH_OPTS[@]}" "admin@${ADDR[$z]}" "PEERS='$PEERS' HS='$SAMPLES_HS' bash -s" \
+    > "$OUT/handshake-$z.txt" <<'REMOTE' &
 for ip in ${PEERS//,/ }; do
   times=()
-  for _ in $(seq 30); do
+  for _ in $(seq "$HS"); do
     t0=$EPOCHREALTIME
     if exec 3<>"/dev/tcp/$ip/443" 2>/dev/null; then
       t1=$EPOCHREALTIME; exec 3>&-
@@ -127,9 +145,17 @@ for ip in ${PEERS//,/ }; do
   printf '    %-16s %8s ms\n' "$ip" "$med"
 done
 REMOTE
+done
+wait
+for z in "${ZONES[@]}"; do
+  echo "  zone $z"
+  cat "$OUT/handshake-$z.txt"
 done | tee "$OUT/handshake.txt"
 
 say "result"
 python3 analyse.py "$OUT" | tee "$OUT/report.txt"
 echo
 echo "saved in $(pwd)/$OUT"
+printf 'took %dm%02ds, of which %ss was capture\n' \
+  $(( ($(date +%s) - STARTED) / 60 )) $(( ($(date +%s) - STARTED) % 60 )) \
+  "$SECONDS_CAPTURE"
