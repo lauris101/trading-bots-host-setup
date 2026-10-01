@@ -111,6 +111,10 @@
     name: chrony
     state: started
     enabled: true
+  # In --check the package or unit this needs was not actually
+  # created, so a dry run has nothing to inspect and would fail on a
+  # fresh host. It cannot answer this one; it must not fail on it.
+  when: not ansible_check_mode
 
 - name: Unattended security upgrades, no automatic reboot
   ansible.builtin.copy:

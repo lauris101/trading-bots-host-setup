@@ -31,6 +31,10 @@
   loop:
     - aws-secondary-ips.timer
     - aws-secondary-ips.service
+  # In --check the package or unit this needs was not actually
+  # created, so a dry run has nothing to inspect and would fail on a
+  # fresh host. It cannot answer this one; it must not fail on it.
+  when: not ansible_check_mode
 
 - name: What the interface carries now
   ansible.builtin.command: ip -4 -brief addr show dev {{ ansible_facts.default_ipv4.interface }}

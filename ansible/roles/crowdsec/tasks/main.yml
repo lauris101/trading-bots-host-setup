@@ -160,6 +160,10 @@
     name: crowdsec
     state: started
     enabled: true
+  # In --check the package or unit this needs was not actually
+  # created, so a dry run has nothing to inspect and would fail on a
+  # fresh host. It cannot answer this one; it must not fail on it.
+  when: not ansible_check_mode
 
 - name: Firewall bouncer (nftables). Its postinst registers it with the local API.
   ansible.builtin.apt:
@@ -185,6 +189,10 @@
     name: crowdsec-firewall-bouncer
     state: started
     enabled: true
+  # In --check the package or unit this needs was not actually
+  # created, so a dry run has nothing to inspect and would fail on a
+  # fresh host. It cannot answer this one; it must not fail on it.
+  when: not ansible_check_mode
 
 - name: Enroll in the CrowdSec console when a key is given (optional; view alerts in a browser)
   ansible.builtin.command: cscli console enroll --name {{ host_name }} {{ crowdsec_enroll_key }}

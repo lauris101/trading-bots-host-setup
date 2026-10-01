@@ -54,13 +54,17 @@
 - name: systemd sees the unit
   ansible.builtin.systemd:
     daemon_reload: true
-  when: irq_unit.changed
+  when: irq_unit.changed and not ansible_check_mode
 
 - name: IRQ affinity applied now and enabled at boot
   ansible.builtin.systemd:
     name: bot-irq-affinity.service
     enabled: true
     state: restarted
+  # In --check the package or unit this needs was not actually
+  # created, so a dry run has nothing to inspect and would fail on a
+  # fresh host. It cannot answer this one; it must not fail on it.
+  when: not ansible_check_mode
 
 - name: Network and memory sysctls for a latency-sensitive box
   ansible.posix.sysctl:
