@@ -19,7 +19,7 @@ laptop                                     AWS (ap-northeast-1)
 1. just init / plan / apply  --terraform-->  VPC, subnet, IGW, SG(22 only), ENI(3 IPs),
                                              c7g.2xlarge Debian 13, 80 GB root, 3 EIPs
 2. just inventory            <-- outputs --  first EIP + instance id -> inventory/hosts.yml
-3. just provision            --ansible---->  ssh admin@EIP: base, sshd, trading-bot user,
+3. just provision            --ansible---->  ssh <image account>@EIP: base, sshd, trading-bot user,
    (reboots once, for isolcpus)              docker, crowdsec, secondary IPs, hotpath
 4. ssh trading-bot@EIP                       clone trading-bots, bootstrap.sh, deploy.sh prod vX.Y.Z
 ```

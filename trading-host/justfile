@@ -104,15 +104,15 @@ tags tags:
 
 # SSH in as admin (ansible's user), with the key from the inventory
 ssh:
-    ssh -i $({{tf}} output -raw ssh_private_key_file) admin@$({{tf}} output -raw ssh | sed 's/^ssh admin@//')
+    ssh -i $({{tf}} output -raw ssh_private_key_file) $({{tf}} output -raw ssh | sed 's/^ssh //')
 
 # SSH in as the trading-bot account
 ssh-bot:
-    ssh -i $({{tf}} output -raw ssh_private_key_file) trading-bot@$({{tf}} output -raw ssh | sed 's/^ssh admin@//')
+    ssh -i $({{tf}} output -raw ssh_private_key_file) trading-bot@$({{tf}} output -raw ssh | sed 's/^ssh [^@]*@//')
 
 # TCP connect latency from the host to every Hyperliquid API address (compare AZs with this)
 latency samples="20":
-    ssh -i $({{tf}} output -raw ssh_private_key_file) admin@$({{tf}} output -raw ssh | sed 's/^ssh admin@//') 'LC_ALL=C bash -s' -- {{samples}} < scripts/hl-latency.sh
+    ssh -i $({{tf}} output -raw ssh_private_key_file) $({{tf}} output -raw ssh | sed 's/^ssh //') 'LC_ALL=C bash -s' -- {{samples}} < scripts/hl-latency.sh
 
 # --- teardown -----------------------------------------------------------------
 
