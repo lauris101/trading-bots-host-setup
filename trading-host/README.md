@@ -134,10 +134,29 @@ Zone NAMES are per-account aliases; the stable identifier is the zone ID
 `aws ec2 describe-availability-zones --region ap-northeast-1 --query
 'AvailabilityZones[].[ZoneName,ZoneId]' --output table`.
 
-Measured 2026-09-10, Hyperliquid only, median handshake to the `api.` edge:
-`1d` 1.35 ms, `1a` 1.6 ms, `1c` slowest; the host runs in `1d`. Binance has
-not been measured from any zone. To change the zone,
-set `availability_zone` in `terraform.tfvars`, then `just rebuild` and
+Measured 2026-10-01 with `just az-probe`, 20 s of bookTicker from one box
+per zone, joined on the update id. The leader leg, which is the one that
+moves:
+
+| zone ID | name here | behind the first | win share |
+|---|---|---|---|
+| `apne1-az4` | `ap-northeast-1a` | 0 us | 86-99% |
+| `apne1-az2` | `ap-northeast-1d` | ~548 us | 1-13% |
+| `apne1-az1` | `ap-northeast-1c` | ~771 us | 0-4% |
+
+apne1-az4 was first against all eight of the addresses behind
+`fstream.binance.com`, not one or two, so this is where Binance
+disseminates rather than a lucky peer. Clock offsets were 2.2, 3.4 and
+46.5 us against gaps of 367-968 us, so the ordering is not the clocks.
+
+The lagger leg pulls the other way by less: measured 2026-09-10, median
+handshake to the `api.` edge was `1d` 1.35 ms against `1a` 1.6 ms. That is a
+round trip against the probe's one-way arrivals, so it is worth about 125 us
+one-way -- leaving `ap-northeast-1a` (apne1-az4) ahead on the sum by roughly
+420 us. The host still runs in apne1-az2 and moves at the next rebuild.
+
+To change the zone,
+set `availability_zone_id` in `terraform.tfvars`, then `just rebuild` and
 `just provision`: subnet, ENI and instance are replaced (the recipe lifts
 termination protection on the old instance first, since a replace starts
 with a terminate); the elastic IPs are kept.

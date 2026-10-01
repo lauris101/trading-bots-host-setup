@@ -19,9 +19,11 @@ resource "aws_internet_gateway" "main" {
 }
 
 resource "aws_subnet" "public" {
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = var.subnet_cidr
-  availability_zone = var.availability_zone
+  vpc_id     = aws_vpc.main.id
+  cidr_block = var.subnet_cidr
+  # By ID: the zone names are account aliases and would not survive being
+  # read by anyone else, or compared with the probe's output.
+  availability_zone_id = var.availability_zone_id
 
   # No auto-assigned public IP: the elastic IPs below are the public side.
   map_public_ip_on_launch = false

@@ -17,7 +17,12 @@ aws_profile = "trading"
 
 # Defaults, shown so they are easy to change:
 # region                 = "ap-northeast-1"
-# availability_zone      = "ap-northeast-1a"
+# The zone, as a zone ID: the names are per-account aliases, so apne1-az4 is
+# this account's `ap-northeast-1a`. The default is apne1-az2, where the host
+# runs today. apne1-az4 measured ~550 us closer to the leader venue (README
+# "Availability zone"); setting it here replaces subnet, ENI and instance, so
+# it belongs in a rebuild and nowhere else.
+# availability_zone_id   = "apne1-az4"
 # name                   = "trading-host"
 # The image's own login account, which Ansible connects as. Debian is
 # `admin`. Set this to what the RUNNING host has while it differs from the

@@ -4,10 +4,29 @@ variable "region" {
   default     = "ap-northeast-1"
 }
 
-variable "availability_zone" {
-  description = "AZ for the subnet and the instance (c7g is offered in ap-northeast-1a, 1c and 1d; 1d measured fastest to the venue's edge, see README)."
+variable "availability_zone_id" {
+  description = <<-EOT
+    Zone for the subnet and the instance, as a zone ID rather than a zone
+    name. The names are per-account aliases -- this account's
+    `ap-northeast-1a` is `apne1-az4` and is some other account's `1c` -- so
+    the ID is the only identifier that names a place.
+
+    apne1-az4 (`ap-northeast-1a` here) measured fastest to the LEADER venue
+    and that is the leg that moves with the zone; see README. The default
+    is still apne1-az2, the zone the host RUNS in, because changing it
+    replaces the subnet, the ENI and the instance: with no instance in the
+    state -- after a `just park`, say -- an apply carrying apne1-az4 would
+    relocate the host as a side effect of being run. Set the new zone in
+    terraform.tfvars deliberately, as part of a rebuild, and nothing moves
+    by accident.
+  EOT
   type        = string
-  default     = "ap-northeast-1d"
+  default     = "apne1-az2"
+
+  validation {
+    condition     = can(regex("^apne1-az[0-9]+$", var.availability_zone_id))
+    error_message = "A Tokyo zone ID, e.g. apne1-az4 -- not a zone name like ap-northeast-1a."
+  }
 }
 
 variable "aws_profile" {
