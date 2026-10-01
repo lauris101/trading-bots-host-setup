@@ -112,7 +112,9 @@ ssh-bot:
 
 # Compare availability zones for real: a box in each, all watching the same
 # Binance stream, reporting which zone sees each update first. Builds its own
-# throwaway VPC, then destroys everything. Takes about 8 minutes.
+# throwaway VPC, then destroys everything. The argument is the capture length;
+# boot and teardown put a ~3.5 minute floor under the run. `just az-probe 20`
+# is a first look.
 az-probe seconds="120":
     az-probe/run.sh {{seconds}}
 

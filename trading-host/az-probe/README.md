@@ -2,8 +2,17 @@
 
 One command:
 
-    just az-probe            # 120 s of capture, about 8 minutes end to end
-    just az-probe 300        # longer capture, tighter numbers
+    just az-probe 20         # a first look, about 4 minutes end to end
+    just az-probe            # 120 s of capture, about 6 minutes
+    just az-probe 300        # longest look, for a close call
+
+The argument is the CAPTURE length, and the run is always longer than it:
+building the stack, booting three boxes and destroying them again is a
+roughly 3.5 minute floor that no argument shortens. Capture length is rarely
+what limits the answer -- the streams carry around 20k updates a second, so
+even 20 s joins hundreds of thousands of samples. Go longer when two zones
+come out within a few tens of microseconds of each other, which is the one
+case where more samples decide it.
 
 It builds one `c7g.2xlarge` in each of the region's three zones, has all of
 them watch the same Binance bookTicker streams at the same time, joins the
