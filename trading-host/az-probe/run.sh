@@ -107,7 +107,10 @@ for z in "${ZONES[@]}"; do
 set -e
 pids=()
 for ip in ${PEERS//,/ }; do
-  python3 /tmp/probe.py "$ip" "$SECS" "$SYMS" "/tmp/cap_$ip.tsv" 2>/dev/null &
+  # Belt and braces with the probe's own alarm: this step blocks the run,
+  # so nothing in it may outlast the window by more than a moment.
+  timeout -k 5 "$((${SECS%%.*} + 45))" \
+    python3 /tmp/probe.py "$ip" "$SECS" "$SYMS" "/tmp/cap_$ip.tsv" 2>>/tmp/probe.err &
   pids+=($!)
 done
 wait "${pids[@]}" || true
@@ -120,6 +123,10 @@ say "collecting"
 for z in "${ZONES[@]}"; do
   mkdir -p "$OUT/$z"
   scp "${SSH_OPTS[@]}" -q "admin@${ADDR[$z]}:/tmp/cap_*.tsv" "$OUT/$z/" 2>/dev/null || true
+  # Anything a probe complained about: a refused upgrade or a dead address
+  # shows up here rather than as a silently missing capture.
+  ssh "${SSH_OPTS[@]}" "admin@${ADDR[$z]}" 'cat /tmp/probe.err 2>/dev/null' \
+    | sed "s/^/  $z: /" || true
   off=$(ssh "${SSH_OPTS[@]}" "admin@${ADDR[$z]}" \
     "chronyc tracking | awk '/^RMS offset/ {print \$4}'" 2>/dev/null || echo "nan")
   printf '%s\t%s\n' "$z" "$off" >> "$OUT/skew.tsv"

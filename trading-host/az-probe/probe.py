@@ -19,6 +19,7 @@ more thing to differ between the three boxes.
 import base64
 import json
 import os
+import signal
 import socket
 import ssl
 import struct
@@ -88,6 +89,12 @@ def main():
     symbols = sys.argv[3].split(",")
     out = sys.argv[4]
 
+    # A ceiling no path can escape. Every wait below is bounded, but the run
+    # fans 8 addresses x 3 zones out and then blocks on all of them, so one
+    # stuck probe costs the whole measurement. Dying beats hanging.
+    signal.signal(signal.SIGALRM, lambda *_: sys.exit(f"{ip}: gave up"))
+    signal.alarm(int(seconds) + 30)
+
     streams = "/".join(f"{s}@bookTicker" for s in symbols)
     path = f"/stream?streams={streams}"
 
@@ -109,11 +116,19 @@ def main():
     )
     sock.sendall(req.encode())
 
+    # A peer that declines by closing makes recv return b"" forever, so the
+    # empty read has to end this loop: without it one unlucky address in the
+    # pinned list spins a core and holds up the whole run.
     head = b""
     while b"\r\n\r\n" not in head:
-        head += sock.recv(4096)
+        chunk = sock.recv(4096)
+        if not chunk:
+            sys.exit(f"{ip}: closed during the upgrade")
+        head += chunk
+        if len(head) > 65536:
+            sys.exit(f"{ip}: no end of headers")
     if b"101" not in head.split(b"\r\n")[0]:
-        sys.exit(f"upgrade refused: {head.split(chr(13).encode())[0]!r}")
+        sys.exit(f"{ip}: upgrade refused: {head.split(b"\r\n")[0]!r}")
 
     deadline = time.time() + seconds
     n = 0
