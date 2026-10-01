@@ -110,9 +110,15 @@ ssh:
 ssh-bot:
     ssh -i $({{tf}} output -raw ssh_private_key_file) trading-bot@$({{tf}} output -raw ssh | sed 's/^ssh [^@]*@//')
 
-# TCP connect latency from the host to every Hyperliquid API address (compare AZs with this)
+# Compare availability zones for real: a box in each, all watching the same
+# Binance stream, reporting which zone sees each update first. Builds its own
+# throwaway VPC, then destroys everything. Takes about 8 minutes.
+az-probe seconds="120":
+    az-probe/run.sh {{seconds}}
+
+# TCP connect latency from the host to both legs, Binance and Hyperliquid (compare AZs on the SUM)
 latency samples="20":
-    ssh -i $({{tf}} output -raw ssh_private_key_file) $({{tf}} output -raw ssh | sed 's/^ssh //') 'LC_ALL=C bash -s' -- {{samples}} < scripts/hl-latency.sh
+    ssh -i $({{tf}} output -raw ssh_private_key_file) $({{tf}} output -raw ssh | sed 's/^ssh //') 'LC_ALL=C bash -s' -- {{samples}} < scripts/venue-latency.sh
 
 # --- teardown -----------------------------------------------------------------
 

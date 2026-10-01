@@ -42,7 +42,7 @@ the inventory next to them.
 | `just tags <tags>` | `ansible-playbook playbook.yml --diff --tags <tags>` | A subset of roles, e.g. `just tags trading_bot_user,sshd`. |
 | `just ssh` | `ssh -i <key> admin@<host>` | Shell as ansible's user. |
 | `just ssh-bot` | `ssh -i <key> trading-bot@<host>` | Shell as the account the stack runs under. |
-| `just latency [samples]` | `scripts/hl-latency.sh` on the host over ssh | TCP connect latency from the host to every Hyperliquid API address; compare availability zones with it. |
+| `just latency [samples]` |  `scripts/venue-latency.sh` on the host over ssh | TCP connect latency to both legs, Binance futures and Hyperliquid; prints the sum, which is what to compare across availability zones. |
 | `just deploy-key` | `cat ~/.ssh/id_ed25519_github.pub` on the host via ansible | The host's GitHub deploy key (public half) to paste into the repository's Deploy keys. |
 | `just park` | state-backup, termination protection off, `terraform destroy -target=aws_instance.host` | Destroy the instance only, keep the elastic IPs allocated so bypass lists and DNS keep working. No instance charge while parked; the IPs are charged. README "Park". |
 | `just unpark` | state-backup, `terraform apply`, inventory | Recreate the instance on the same elastic IPs. A fresh disk: `ssh-keygen -R <ip>`, then `just provision`, then a new GitHub deploy key. |

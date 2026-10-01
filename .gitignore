@@ -23,3 +23,6 @@ db-host/inventory.yml
 *.key
 id_*
 !id_*.pub.example
+
+# az-probe: one measurement run's captures
+trading-host/az-probe/results-*/

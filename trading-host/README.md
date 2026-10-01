@@ -103,7 +103,7 @@ defaults in `variables.tf`. State is in the R2 bucket (repository README,
 What is created:
 
 - **VPC** `10.20.0.0/16` with one public subnet in `availability_zone`
-  (default `ap-northeast-1a`), internet gateway, route table.
+  (default `ap-northeast-1d`), internet gateway, route table.
 - **Security group**: inbound TCP 22 from `ssh_allowed_cidrs`; all outbound.
   No other inbound rule. No host firewall besides CrowdSec's own nftables
   table.
@@ -120,11 +120,23 @@ What is created:
 - **Root volume** 80 GB gp3, encrypted, deleted with the instance. The
   filesystem grows into it at first boot.
 
-Availability zone: Hyperliquid runs in AWS Tokyo across several zones
-behind CloudFront; zone names are account-specific. `just latency` measures
-TCP connect times from the host to every API address (measured 2026-09-10,
-median handshake to the `api.` edge: `1d` 1.35 ms, `1a` 1.6 ms, `1c`
-slowest; the host runs in `1d`). To change the zone,
+Availability zone: the two legs are reached differently. Hyperliquid's
+`api.` addresses are CloudFront edge, so they come off the AWS edge network
+and move little with the zone; `fstream.binance.com` resolves to plain EC2
+instances in `ap-northeast-1` (ip-ranges.json, 2026-10-01), where sharing a
+zone with the peer is a ~100 us handshake and not sharing one is ~0.5 ms.
+The leader leg therefore moves most. Both legs are in the same critical
+path, so the zone to pick is the one with the lowest SUM, which is what
+`just latency` prints (`scripts/venue-latency.sh`).
+
+Zone NAMES are per-account aliases; the stable identifier is the zone ID
+(`apne1-az1` and friends), which names the same building in every account:
+`aws ec2 describe-availability-zones --region ap-northeast-1 --query
+'AvailabilityZones[].[ZoneName,ZoneId]' --output table`.
+
+Measured 2026-09-10, Hyperliquid only, median handshake to the `api.` edge:
+`1d` 1.35 ms, `1a` 1.6 ms, `1c` slowest; the host runs in `1d`. Binance has
+not been measured from any zone. To change the zone,
 set `availability_zone` in `terraform.tfvars`, then `just rebuild` and
 `just provision`: subnet, ENI and instance are replaced (the recipe lifts
 termination protection on the old instance first, since a replace starts
