@@ -73,5 +73,5 @@ variable "host_a_records" {
 variable "session_duration" {
   description = "How long an Access login lasts before the next one-time PIN."
   type        = string
-  default     = "24h"
+  default     = "168h"
 }
